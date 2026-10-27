@@ -2,7 +2,6 @@
 // 1920x1080 슬라이드를 화면 밖에 그린 뒤 html2canvas 로 이미지로 바꿉니다.
 window.SurveyReport = (function () {
   const Q = window.SURVEY_QUESTIONS;
-  const SCALE = ['매우만족', '만족', '보통', '불만족', '매우불만족'];
   const W = 1920, H = 1080;
 
   const CSS = `
@@ -59,31 +58,13 @@ window.SurveyReport = (function () {
 .rpt .insight { font-size: 18px; line-height: 1.55; }
 .rpt .insight + ol { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.2); }
 .rpt .foot { margin-top: auto; padding-top: 14px; font-size: 14px; color: #75746f; display: flex; justify-content: space-between; }
-.rpt .dist { display: grid; grid-template-columns: 170px 1fr 70px; align-items: center; gap: 14px; margin-bottom: 12px; }
-.rpt .dist .n { font-size: 18px; font-weight: 700; }
-.rpt .dist .seg { display: flex; height: 34px; }
-.rpt .dist .seg i { display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 14px; font-weight: 700; color: #fff; border-right: 2px solid #fff; }
-.rpt .dist .seg i:first-child { border-radius: 4px 0 0 4px; }
-.rpt .dist .seg i:last-child { border-radius: 0 4px 4px 0; border-right: 0; }
-.rpt .dist .seg i.c4, .rpt .dist .seg i.c3, .rpt .dist .seg i.c2 { color: #0b0b0b; }
-.rpt .dist .a { text-align: right; font-size: 20px; font-weight: 800; }
-.rpt .c5 { background: #2a78d6; } .rpt .c4 { background: #86b6ef; } .rpt .c3 { background: #dddcd6; } .rpt .c2 { background: #ef9a94; } .rpt .c1 { background: #c0352f; }
-.rpt .legend { display: flex; gap: 18px; font-size: 14px; color: #52514e; margin: 2px 0 14px; align-items: center; }
-.rpt .legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -2px; }
-.rpt .kct { display: grid; gap: 18px; margin-top: 16px; }
-.rpt .kct h3 { font-size: 21px; font-weight: 800; margin-bottom: 10px; }
-.rpt .kct h3 .lab { font-size: 14px; font-weight: 800; letter-spacing: .06em; padding: 2px 9px; border-radius: 5px; color: #fff; margin-right: 10px; vertical-align: 3px; }
-.rpt .keep .lab { background: #1a7f3c; } .rpt .change .lab { background: #c0352f; } .rpt .try .lab { background: #2a78d6; }
 .rpt .arrow { color: #2a78d6; font-weight: 700; }
 .rpt .page.t1 .kpi { padding: 10px 24px; }
 .rpt .page.t1 .grid2 { margin-top: 14px; }
-.rpt .page.t1 .kct { margin-top: 12px; }
-.rpt .page.t1 .dist { margin-bottom: 8px; }
 .rpt .page.t1 .ib { margin-bottom: 7px; }
 .rpt .page.t1 ul.pts li, .rpt .page.t1 ol.acts li { font-size: 15.5px; margin-bottom: 5px; }
 .rpt .page.t1 .box { padding: 12px 20px; }
 .rpt .page.t2 .ib .l { font-size: 16px; }
-.rpt .page.t2 .dist .seg { height: 28px; }
 .rpt .page.t2 .panel .sub { margin-bottom: 8px; }
 .rpt .page.t2 ul.pts li, .rpt .page.t2 ol.acts li, .rpt .page.t2 .insight { font-size: 14.5px; line-height: 1.45; }
 .rpt .rcols { display: grid; grid-template-columns: 0.62fr 1.5fr 1.35fr 0.85fr; gap: 20px; margin-top: 22px; flex: 1; min-height: 0; align-items: start; }
@@ -127,7 +108,7 @@ window.SurveyReport = (function () {
   function prepare(r, surveys, today, org) {
     const N = r.count;
     const areas = r.areas.map(function (a) {
-      return { name: a.name, avg: a.average, dist: a.dist, low: a.dist[3] + a.dist[4], okUp: a.dist[0] + a.dist[1] + a.dist[2] };
+      return { name: a.name, avg: a.average, dist: a.dist, low: a.dist[3] + a.dist[4] };
     });
     const avgs = areas.map(function (a) { return a.avg; });
     const overall = avgs.reduce(function (a, b) { return a + b; }, 0) / avgs.length;
@@ -152,7 +133,7 @@ window.SurveyReport = (function () {
   function head(d, title) {
     const s = d.r.survey;
     return '<div class="head"><div><div class="org">' + esc(d.org) + '</div><h1>' + esc(title) + '</h1></div>' +
-      '<div class="meta"><b>' + esc(s.title) + '</b><br>응답 기간 ' + dot(s.start) + '(' + dayName(s.start) + ') ~ ' + md(s.end) + '(' + dayName(s.end) + ') · <b>' + d.stamp + '</b><br>응답 ' + d.N + '명 · 익명 설문</div></div>';
+      '<div class="meta"><b>' + esc(s.title) + '</b><br>응답 기간 ' + dot(s.start) + '(' + dayName(s.start) + ') ~ ' + md(s.end) + '(' + dayName(s.end) + ') · <b>' + d.stamp + '</b><br>' + (d.pctOnly ? '' : '응답 ' + d.N + '명 · ') + '익명 설문</div></div>';
   }
   function kpi(k, v, s, alert) {
     const long = v.sm && v.html.replace(/<[^>]+>/g, '').length > 16;
@@ -167,10 +148,14 @@ window.SurveyReport = (function () {
   function issueBars(d, items, ranked) {
     return items.map(function (it, i) {
       const pct = d.N ? Math.round(it.count / d.N * 100) : 0;
-      return '<div class="ib' + (it.count ? '' : ' zero') + '"><div class="l"><span>' + (ranked ? '<span class="rank">' + (i + 1) + '</span>' : '') + esc(it.name) + '</span><span>' + it.count + '명 · ' + pct + '%</span></div><div class="t"><i style="width:' + pct + '%"></i></div></div>';
+      return '<div class="ib' + (it.count ? '' : ' zero') + '"><div class="l"><span>' + (ranked ? '<span class="rank">' + (i + 1) + '</span>' : '') + esc(it.name) + '</span><span>' + (d.pctOnly ? '' : it.count + '명 · ') + pct + '%</span></div><div class="t"><i style="width:' + pct + '%"></i></div></div>';
     }).join('');
   }
   function smallSampleNote(d) {
+    if (d.pctOnly) {
+      return '익명 설문입니다. 응답 내용으로 개별 상담사를 특정하거나 확인하지 말아 주세요.' +
+        (d.closed ? '' : ' 설문 마감(' + md(d.r.survey.end) + ') 전 중간 집계입니다.');
+    }
     return '응답 ' + d.N + '명' + (d.N < 10 ? '으로 소수 의견의 영향이 큽니다.' : '입니다.') +
       (d.closed ? '' : ' 설문 마감(' + md(d.r.survey.end) + ') 전 중간 집계입니다.');
   }
@@ -189,9 +174,9 @@ window.SurveyReport = (function () {
     }
     const kpis = '<div class="kpis">' +
       kpi('전체 만족도 (5개 영역 평균)', d.overall.toFixed(2) + '<small>/ 5</small>', (d.overall < 3 ? '보통(3점) 미만' : '보통(3점) 이상') + ' · 3점 미만 영역 ' + under3 + '개', d.overall < 3) +
-      kpi("'만족' 이상 응답 비율", Math.round(d.satShare * 100) + '%', '전체 평가 ' + d.total + '건 중 ' + d.satCount + '건', d.satShare < 0.5) +
+      kpi("'만족' 이상 응답 비율", Math.round(d.satShare * 100) + '%', (d.pctOnly ? "전체 평가 중 '만족'·'매우만족' 비율" : '전체 평가 ' + d.total + '건 중 ' + d.satCount + '건'), d.satShare < 0.5) +
       (top
-        ? kpi('가장 많이 꼽은 아쉬운 점', { html: esc(top.name), sm: true }, top.count + '명 / ' + d.N + '명 (' + Math.round(top.count / d.N * 100) + '%) 선택', top.count / d.N >= 0.5)
+        ? kpi('가장 많이 꼽은 아쉬운 점', { html: esc(top.name), sm: true }, (d.pctOnly ? '응답자의 ' + Math.round(top.count / d.N * 100) + '%가 선택' : top.count + '명 / ' + d.N + '명 (' + Math.round(top.count / d.N * 100) + '%) 선택'), top.count / d.N >= 0.5)
         : kpi('가장 많이 꼽은 아쉬운 점', { html: '없음', sm: true }, '아쉬운 점 선택 없음', false)) +
       cmpKpi + '</div>';
 
@@ -205,8 +190,8 @@ window.SurveyReport = (function () {
       '<div style="display:grid;grid-template-columns:170px 1fr 90px 90px 130px"><span></span><div class="axis"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>';
 
     const top3 = d.realIssues.slice(0, 3);
-    const rest = d.realIssues.slice(3).map(function (i) { return esc(i.name) + ' ' + i.count + '명'; });
-    const issuesPanel = '<div class="panel"><h2>교육에서 아쉬웠던 점 TOP 3</h2><div class="sub">복수 선택 · 응답자 ' + d.N + '명 중 선택 인원</div>' +
+    const rest = d.realIssues.slice(3).map(function (i) { return esc(i.name) + ' ' + (d.pctOnly ? Math.round(i.count / d.N * 100) + '%' : i.count + '명'); });
+    const issuesPanel = '<div class="panel"><h2>교육에서 아쉬웠던 점 TOP 3</h2><div class="sub">복수 선택 · ' + (d.pctOnly ? '응답자 중 선택한 비율' : '응답자 ' + d.N + '명 중 선택 인원') + '</div>' +
       (top3.length ? issueBars(d, top3, true) : '<p style="font-size:17px;color:#75746f">선택된 항목이 없습니다.</p>') +
       (rest.length ? '<div style="font-size:15px;color:#75746f;margin-top:4px">그 외: ' + rest.join(' · ') + '</div>' : '') + '</div>';
 
@@ -273,43 +258,6 @@ window.SurveyReport = (function () {
     return Array.prototype.some.call(page.querySelectorAll('.rcol'), function (c) { return c.getBoundingClientRect().bottom > foot.top - 4; });
   }
 
-  // ---------------------------------------------------------------- 교육 담당자 피드백
-  function trainerPage(d, rep) {
-    const min = Math.min.apply(null, d.areas.map(function (a) { return a.avg; }));
-    const max = Math.max.apply(null, d.areas.map(function (a) { return a.avg; }));
-    const lowest = d.areas.filter(function (a) { return a.avg === min; });
-    const highest = d.areas.filter(function (a) { return a.avg === max; });
-    const lowOk = lowest.reduce(function (s, a) { return s + a.okUp; }, 0);
-    const kpis = '<div class="kpis k3">' +
-      kpi('전체 만족도 (5개 영역 평균)', d.overall.toFixed(2) + '<small>/ 5</small>',
-        d.prev ? '직전 회차 대비 ' + delta(d.overall, d.prevOverall) : '첫 회차 기준점 · 다음 회차와 비교 예정', d.overall < 3) +
-      kpi('가장 낮은 영역' + (lowest.length > 1 ? ' (공동 ' + min.toFixed(2) + '점)' : ' (' + min.toFixed(2) + '점)'), { html: lowest.map(function (a) { return esc(a.name); }).join(' · '), sm: true },
-        (lowest.length > 1 ? lowest.length + '개 영역 ' : '') + '응답 ' + lowest.length * d.N + "건 중 '보통' 이상 " + lowOk + '건', min < 3) +
-      kpi('가장 높은 영역', { html: highest.map(function (a) { return esc(a.name); }).join(' · ') + ' ' + max.toFixed(2), sm: true },
-        "'보통' 이상 " + highest[0].okUp + '/' + d.N + '명', false) + '</div>';
-
-    const legend = '<div class="legend">' + SCALE.map(function (s, k) { return '<span><i class="c' + (5 - k) + '"></i>' + s + '</span>'; }).join('') + '<span style="margin-left:auto">막대 안 숫자 = 응답 인원 · 오른쪽 = 평균</span></div>';
-    const dist = d.areas.map(function (a) {
-      const segs = a.dist.map(function (c, k) { return c ? '<i class="c' + (5 - k) + '" style="flex:' + c + '">' + c + '</i>' : ''; }).join('');
-      return '<div class="dist"><div class="n' + (a.avg < 2 ? ' low' : '') + '">' + esc(a.name) + '</div><div class="seg">' + segs + '</div><div class="a">' + f2(a.avg) + '</div></div>';
-    }).join('');
-    const issueList = d.issues.filter(function (i) { return i.count || (i.name !== '기타' && i.name !== Q.issueNone); });
-
-    const boxes = [
-      { cls: 'keep', lab: 'KEEP', title: '유지할 점', text: rep.keep },
-      { cls: 'change', lab: 'CHANGE', title: '바꿔 주세요', text: rep.change },
-      { cls: 'try', lab: 'TRY', title: '시도해 주세요', text: rep['try'] }
-    ].filter(function (b) { return lines(b.text).length; });
-    const widths = { keep: '0.8fr', change: '1.25fr', 'try': '1fr' };
-    const kct = boxes.length ? '<div class="kct" style="grid-template-columns:' + boxes.map(function (b) { return widths[b.cls]; }).join(' ') + '">' +
-      boxes.map(function (b) { return '<div class="box ' + b.cls + '"><h3><span class="lab">' + b.lab + '</span>' + b.title + '</h3>' + bullets(b.text) + '</div>'; }).join('') + '</div>' : '';
-
-    return '<section class="page">' + head(d, titled(d, '교육, 상담사들은 이렇게 느꼈습니다')) + kpis +
-      '<div class="grid2" style="grid-template-columns:1.3fr 1fr"><div class="panel"><h2>영역별 응답 분포</h2><div class="sub">빨간색 = 불만족 · 파란색 = 만족 · 빨간 글씨 = 평균 2점 미만</div>' + legend + dist + '</div>' +
-      '<div class="panel"><h2>교육에서 아쉬웠던 점</h2><div class="sub">복수 선택 · 응답자 ' + d.N + '명 중 선택 인원</div>' + issueBars(d, issueList, false) + '</div></div>' +
-      kct + '<div class="foot"><span>※ 익명 설문입니다. 응답 내용으로 개별 상담사를 특정하거나 확인하지 말아 주세요. · ' + smallSampleNote(d) + '</span></div></section>';
-  }
-
   // ---------------------------------------------------------------- 이미지로 변환
   let libPromise = null;
   function loadLibs() {
@@ -373,8 +321,9 @@ window.SurveyReport = (function () {
     document.body.appendChild(host);
     try {
       let pages;
+      // 교육 담당자용: 센터장 보고 1페이지와 같은 양식, 응답 인원수 없이 비율만
       if (kind === 'center') pages = [centerPage1(d, report)].concat(commentPages(d, host));
-      else pages = [trainerPage(d, report)];
+      else { d.pctOnly = true; pages = [centerPage1(d, report)]; }
       return await toImages(pages, host);
     } finally {
       host.remove();
