@@ -59,6 +59,12 @@ window.SurveyReport = (function () {
 .rpt .insight + ol { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.2); }
 .rpt .foot { margin-top: auto; padding-top: 14px; font-size: 14px; color: #75746f; display: flex; justify-content: space-between; }
 .rpt .arrow { color: #2a78d6; font-weight: 700; }
+.rpt .kct { display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 14px; }
+.rpt .kct .box { padding: 14px 18px; }
+.rpt .kct h3 { font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+.rpt .kct h3 .lab { font-size: 13px; font-weight: 800; letter-spacing: .06em; padding: 2px 8px; border-radius: 5px; color: #fff; margin-right: 8px; vertical-align: 2px; }
+.rpt .keep .lab { background: #1a7f3c; } .rpt .change .lab { background: #c0352f; } .rpt .try .lab { background: #2a78d6; }
+.rpt .kct ul.pts li { font-size: 15.5px; }
 .rpt .page.t1 .kpi { padding: 10px 24px; }
 .rpt .page.t1 .grid2 { margin-top: 14px; }
 .rpt .page.t1 .ib { margin-bottom: 7px; }
@@ -201,11 +207,25 @@ window.SurveyReport = (function () {
     const plan = (insight || acts.length) ? '<div class="box dark"><h2>시사점 및 향후 조치</h2>' +
       (insight ? '<div class="insight">' + esc(insight).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>') + '</div>' : '') +
       (acts.length ? '<ol class="acts">' + acts.map(function (l, i) { return '<li><span class="no">' + (i + 1) + '</span>' + rich(l) + '</li>'; }).join('') + '</ol>' : '') + '</div>' : '';
-    const bottom = (opin || plan) ? '<div class="grid2" style="grid-template-columns:' + (opin && plan ? '1fr 1.15fr' : '1fr') + ';margin-top:18px">' + opin + plan + '</div>' : '';
+    // 교육 담당자용은 오른쪽에 시사점 대신 KEEP / CHANGE / TRY
+    const right = d.pctOnly ? kct(rep) : plan;
+    const cols = d.pctOnly ? '0.9fr 1.7fr' : '1fr 1.15fr';
+    const bottom = (opin || right) ? '<div class="grid2" style="grid-template-columns:' + (opin && right ? cols : '1fr') + ';margin-top:18px">' + opin + right + '</div>' : '';
 
     return '<section class="page">' + head(d, titled(d, '교육 만족도 설문 결과')) + kpis +
       '<div class="grid2" style="grid-template-columns:1.45fr 1fr"><div class="panel"><h2>영역별 만족도</h2><div class="sub">매우만족 5 · 만족 4 · 보통 3 · 불만족 2 · 매우불만족 1 &nbsp;|&nbsp; 빨간 글씨 = 2점 미만</div>' + table + '</div>' + issuesPanel + '</div>' +
       bottom + '<div class="foot"><span>※ ' + smallSampleNote(d) + '</span><span class="pg"></span></div></section>';
+  }
+
+  function kct(rep) {
+    const boxes = [
+      { cls: 'keep', lab: 'KEEP', title: '유지할 점', text: rep.keep },
+      { cls: 'change', lab: 'CHANGE', title: '바꿔 주세요', text: rep.change },
+      { cls: 'try', lab: 'TRY', title: '시도해 주세요', text: rep['try'] }
+    ].filter(function (b) { return lines(b.text).length; });
+    if (!boxes.length) return '';
+    return '<div class="kct" style="grid-template-columns:' + boxes.map(function (b) { return b.cls === 'change' ? '1.35fr' : '1fr'; }).join(' ') + '">' +
+      boxes.map(function (b) { return '<div class="box ' + b.cls + '"><h3><span class="lab">' + b.lab + '</span>' + b.title + '</h3>' + bullets(b.text) + '</div>'; }).join('') + '</div>';
   }
 
   // ---------------------------------------------------------------- 센터장 보고 주관식 페이지 (넘치면 여러 장)

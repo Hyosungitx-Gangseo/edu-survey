@@ -6,7 +6,7 @@
 //     [--prev 지난회차.csv --prev-title "..." --prev-start 2026-09-20] [--today 2026-10-28] \
 //     [--html2canvas node_modules/html2canvas/dist/html2canvas.min.js]
 //
-// summary.json: { opinions, insight, actions } - 한 줄에 한 항목 (README 참고)
+// summary.json: { opinions, insight, actions, keep, change, try } - 한 줄에 한 항목 (README 참고)
 // 결과: 센터장보고_1p.png(+주관식 2p~), 교육담당자피드백.png
 const fs = require('fs');
 const path = require('path');
