@@ -534,12 +534,15 @@
     const btns = [$('repCenter'), $('repTrainer'), $('repSave')];
     btns.forEach(function (b) { b.disabled = true; });
     try {
-      const rep = await saveReport(false);
+      let rep, saveError = '';
+      try { rep = await saveReport(false); }
+      catch (e) { rep = collectReport(); saveError = e.message; }
       repStatus('보고서를 만드는 중… (몇 초 걸릴 수 있습니다)');
       const imgs = await SurveyReport.build(kind, lastResults, surveys, today, rep, cfg.ORG_NAME || '');
       const base = lastResults.survey.title.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') + '_' + (kind === 'center' ? '센터장보고' : '교육담당자피드백');
       showImages(imgs, base, kind === 'center' ? '센터장 보고' : '교육 담당자 피드백');
-      repStatus('');
+      if (saveError) repStatus('입력 내용은 저장하지 못했습니다(' + saveError + '). 보고서는 입력한 내용으로 만들었습니다.', true);
+      else repStatus('');
     } catch (err) {
       repStatus(err.message || '보고서를 만들지 못했습니다.', true);
     } finally {
