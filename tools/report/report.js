@@ -106,7 +106,7 @@ window.SurveyReport = (function () {
       const dash = h.match(/^(.{1,30}?)\s+[—–-]\s+(.+)$/);
       if (dash) h = '<b>' + dash[1] + '</b> — ' + dash[2];
       const arrow = h.match(/^(.+?)\s*(?:→|->)\s*(.+)$/);
-      if (arrow) h = arrow[1] + ' <span class="arrow">→</span> <b>' + arrow[2] + '</b>';
+      if (arrow) h = arrow[1] + '<br><span class="arrow">→</span> <b>' + arrow[2] + '</b>';
     }
     return h;
   }
@@ -211,9 +211,12 @@ window.SurveyReport = (function () {
       (acts.length ? '<ol class="acts">' + acts.map(function (l, i) { return '<li><span class="no">' + (i + 1) + '</span>' + rich(l) + '</li>'; }).join('') + '</ol>' : '') + '</div>' : '';
     let bottom;
     if (d.pctOnly) {
-      // 교육 담당자용: 상담사 주요 의견(진한 카드) + KEEP / CHANGE / TRY, 4칸 같은 너비
-      const cards = (lines(rep.opinions).length ? ['<div class="box dark"><h2>상담사 주요 의견</h2>' + bullets(rep.opinions) + '</div>'] : []).concat(kct(rep));
-      bottom = cards.length ? '<div class="kct" style="grid-template-columns:repeat(' + cards.length + ', 1fr)">' + cards.join('') + '</div>' : '';
+      // 교육 담당자용: 상담사 주요 의견(진한 카드, 넓게) + KEEP / CHANGE / TRY
+      const hasOpin = lines(rep.opinions).length > 0;
+      const boxes = kct(rep);
+      const cards = (hasOpin ? ['<div class="box dark"><h2>상담사 주요 의견</h2>' + bullets(rep.opinions) + '</div>'] : []).concat(boxes);
+      const widths = (hasOpin ? ['1.7fr'] : []).concat(boxes.map(function () { return '1fr'; }));
+      bottom = cards.length ? '<div class="kct" style="grid-template-columns:' + widths.join(' ') + '">' + cards.join('') + '</div>' : '';
     } else {
       bottom = (opin || plan) ? '<div class="grid2" style="grid-template-columns:' + (opin && plan ? '1fr 1.15fr' : '1fr') + ';margin-top:18px">' + opin + plan + '</div>' : '';
     }
