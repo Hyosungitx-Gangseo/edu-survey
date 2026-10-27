@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>설문 관리자</title>
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 <style>
   .wrap { max-width: 880px; padding-bottom: 60px; }
   .login { max-width: 380px; margin: 8vh auto 0; }
@@ -95,18 +95,6 @@
   .viz { --series: #2a78d6; --series-strong: #184f95; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .viz { --series: #3987e5; --series-strong: #86b6ef; } }
   :root[data-theme="dark"] .viz { --series: #3987e5; --series-strong: #86b6ef; }
-  .rep-group { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-top: 14px; }
-  .rep-group h3 { font-size: 15px; margin: 0 0 4px; }
-  .rep-group label { display: block; font-size: 13px; font-weight: 700; margin: 12px 0 6px; }
-  .rep-group label small { font-weight: 500; color: var(--text-3); }
-  .rep-group textarea { min-height: 150px; font-size: 15px; }
-  .rep-actions { display: grid; gap: 8px; margin-top: 16px; }
-  .rep-actions .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .rep-status { font-size: 13px; color: var(--text-2); min-height: 18px; }
-  .img-modal { align-items: flex-start; overflow-y: auto; padding: 16px; }
-  .img-modal .modal { border-radius: 18px; max-width: 760px; }
-  .img-modal img { width: 100%; display: block; border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; }
-  .img-modal .dl { display: flex; gap: 8px; margin-bottom: 18px; }
 </style>
 </head>
 <body>
@@ -204,10 +192,9 @@
 </div>
 <div id="tip" class="hidden" role="tooltip"></div>
 
-<script src="config.js?v=3"></script>
-<script src="questions.js?v=3"></script>
-<script src="api.js?v=3"></script>
-<script src="report.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="questions.js?v=4"></script>
+<script src="api.js?v=4"></script>
 <script>
 (function () {
   const Q = window.SURVEY_QUESTIONS;
@@ -465,114 +452,11 @@
 
     html += '<section class="card"><h2 class="section-title">4. 개선 사항</h2>' + textList(null, r.texts.improve) + '</section>';
     html += '<section class="card"><h2 class="section-title">5. 향후 희망하는 교육</h2>' + textList(null, r.texts.wish) + '</section>';
-    html += reportCard(r.report || {});
     html += '<section class="card"><h2 class="section-title">엑셀로 내려받기</h2>' +
       '<p class="section-sub">전체 응답을 CSV 파일로 받습니다. 개인 식별을 막기 위해 응답 순서는 무작위로 섞여 있습니다.</p>' +
       '<button class="btn btn-primary" id="csvBtn">CSV 다운로드</button></section>';
     body.innerHTML = html;
     $('csvBtn').addEventListener('click', function () { downloadCsv(lastResults); });
-    $('repSave').addEventListener('click', function () { saveReport(true).catch(function (e) { repStatus(e.message, true); }); });
-    $('repCenter').addEventListener('click', function () { makeReport('center'); });
-    $('repTrainer').addEventListener('click', function () { makeReport('trainer'); });
-  }
-
-  // ---------- 보고서 (PNG)
-  const REP_FIELDS = [
-    { key: 'opinions', group: 'center', label: '상담사 주요 의견', hint: '한 줄에 하나 · "제목 — 내용" 형식이면 제목이 굵게' },
-    { key: 'insight', group: 'center', label: '시사점', hint: '문단으로 입력 · **굵게** 가능' },
-    { key: 'actions', group: 'center', label: '향후 조치', hint: '한 줄에 하나 · 번호는 자동' },
-    { key: 'keep', group: 'trainer', label: 'KEEP · 유지할 점', hint: '한 줄에 하나' },
-    { key: 'change', group: 'trainer', label: 'CHANGE · 바꿔 주세요', hint: '한 줄에 하나 · "지금 → 바뀔 모습" 형식이면 뒤쪽이 굵게' },
-    { key: 'try', group: 'trainer', label: 'TRY · 시도해 주세요', hint: '한 줄에 하나' }
-  ];
-  let savedReport = '';
-  function reportCard(rep) {
-    savedReport = JSON.stringify(collectReportFrom(rep));
-    function group(g, title, desc) {
-      return '<div class="rep-group"><h3>' + title + '</h3><p class="section-sub" style="margin:0">' + desc + '</p>' +
-        REP_FIELDS.filter(function (f) { return f.group === g; }).map(function (f) {
-          return '<label for="rep_' + f.key + '">' + f.label + ' <small>' + f.hint + '</small></label>' +
-            '<textarea id="rep_' + f.key + '" maxlength="2000">' + esc(rep[f.key] || '') + '</textarea>';
-        }).join('') + '</div>';
-    }
-    return '<section class="card"><h2 class="section-title">보고서 만들기 (PNG)</h2>' +
-      '<p class="section-sub">점수·그래프·주관식 전문은 자동으로 들어갑니다. 아래 칸은 직접 입력하며, 비워 두면 보고서에서 빠집니다.</p>' +
-      group('center', '센터장 보고용', '1페이지 하단에 들어갑니다. 2페이지부터는 주관식 응답 전문이 자동으로 들어갑니다.') +
-      group('trainer', '교육 담당자 피드백용', '1페이지 하단 KEEP / CHANGE / TRY 칸에 들어갑니다.') +
-      '<div class="rep-actions"><button class="btn" id="repSave">입력 내용 저장</button>' +
-      '<div class="row"><button class="btn btn-primary" id="repCenter">센터장 보고 PNG</button><button class="btn btn-primary" id="repTrainer">교육 담당자 PNG</button></div>' +
-      '<div class="rep-status" id="repStatus"></div></div></section>';
-  }
-  function collectReportFrom(src) {
-    const o = {};
-    REP_FIELDS.forEach(function (f) { o[f.key] = String(src[f.key] || ''); });
-    return o;
-  }
-  function collectReport() {
-    const o = {};
-    REP_FIELDS.forEach(function (f) { o[f.key] = $('rep_' + f.key).value; });
-    return o;
-  }
-  function repStatus(msg, isError) {
-    $('repStatus').textContent = msg;
-    $('repStatus').style.color = isError ? 'var(--danger)' : '';
-  }
-  async function saveReport(manual) {
-    const rep = collectReport();
-    if (JSON.stringify(rep) === savedReport) { if (manual) repStatus('저장되어 있습니다.'); return rep; }
-    repStatus('저장 중…');
-    try {
-      await api({ action: 'saveReport', id: lastResults.survey.id, report: rep });
-    } catch (e) {
-      if (e.message === '알 수 없는 요청입니다.') throw new Error('서버(Apps Script) 코드가 최신이 아닙니다. 새 코드를 붙여넣고 "새 버전"으로 배포해 주세요');
-      throw e;
-    }
-    savedReport = JSON.stringify(rep);
-    lastResults.report = rep;
-    repStatus('저장했습니다.');
-    return rep;
-  }
-  let building = false;
-  async function makeReport(kind) {
-    if (building) return;
-    building = true;
-    const btns = [$('repCenter'), $('repTrainer'), $('repSave')];
-    btns.forEach(function (b) { b.disabled = true; });
-    try {
-      let rep, saveError = '';
-      try { rep = await saveReport(false); }
-      catch (e) { rep = collectReport(); saveError = e.message; }
-      repStatus('보고서를 만드는 중… (몇 초 걸릴 수 있습니다)');
-      const imgs = await SurveyReport.build(kind, lastResults, surveys, today, rep, cfg.ORG_NAME || '');
-      const base = lastResults.survey.title.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_') + '_' + (kind === 'center' ? '센터장보고' : '교육담당자피드백');
-      showImages(imgs, base, kind === 'center' ? '센터장 보고' : '교육 담당자 피드백');
-      if (saveError) repStatus('입력 내용은 저장하지 못했습니다(' + saveError + '). 보고서는 입력한 내용으로 만들었습니다.', true);
-      else repStatus('');
-    } catch (err) {
-      repStatus(err.message || '보고서를 만들지 못했습니다.', true);
-    } finally {
-      building = false;
-      btns.forEach(function (b) { b.disabled = false; });
-    }
-  }
-  async function showImages(imgs, base, title) {
-    const urls = await Promise.all(imgs.map(function (d) { return fetch(d).then(function (r) { return r.blob(); }).then(function (b) { return URL.createObjectURL(b); }); }));
-    const bg = document.createElement('div');
-    bg.className = 'modal-bg img-modal';
-    bg.innerHTML = '<div class="modal"><h3>' + esc(title) + ' (' + urls.length + '장)</h3>' +
-      '<p>아래 버튼으로 저장하세요. 저장이 안 되면 이미지를 길게 눌러 "이미지 저장"을 선택하세요.</p>' +
-      urls.map(function (u, i) {
-        const name = base + (urls.length > 1 ? '_' + (i + 1) + 'p' : '') + '.png';
-        return '<img src="' + u + '" alt="' + esc(title) + ' ' + (i + 1) + '페이지"><div class="dl"><a class="btn btn-primary" style="flex:1" href="' + u + '" download="' + esc(name) + '">' + (urls.length > 1 ? (i + 1) + '페이지 ' : '') + 'PNG 저장</a></div>';
-      }).join('') +
-      '<button class="btn btn-block" data-close>닫기</button></div>';
-    bg.addEventListener('click', function (e) {
-      if (e.target === bg || e.target.hasAttribute('data-close')) {
-        bg.remove();
-        urls.forEach(function (u) { URL.revokeObjectURL(u); });
-      }
-    });
-    document.body.appendChild(bg);
   }
 
   function tile(k, v, s) {

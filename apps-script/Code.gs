@@ -34,9 +34,6 @@ const ISSUES = [
 const ISSUE_NONE = '특별히 없음';
 
 const SURVEY_HEADERS = ['id', 'title', 'start', 'end', 'createdAt'];
-// 보고서에 들어가는 직접 입력 항목 (회차별 저장)
-const REPORT_FIELDS = ['opinions', 'insight', 'actions', 'keep', 'change', 'try'];
-const REPORT_HEADERS = ['surveyId'].concat(REPORT_FIELDS).concat(['updatedAt']);
 const RESPONSE_HEADERS = ['surveyId', 'date']
   .concat(AREAS.map(function (a, i) { return 'r' + (i + 1); }))
   .concat(['issues', 'issueDetail', 'improve', 'wish', 'useful']);
@@ -73,7 +70,6 @@ function handle_(req) {
     case 'saveSurvey': return saveSurvey_(req);
     case 'deleteSurvey': return deleteSurvey_(req);
     case 'results': return results_(req);
-    case 'saveReport': return saveReport_(req);
   }
   throw userError_('알 수 없는 요청입니다.');
 }
@@ -236,8 +232,6 @@ function deleteSurvey_(req) {
       .map(function (r) { return r.row; })
       .sort(function (a, b) { return b - a; })
       .forEach(function (row) { rsh.deleteRow(row); });
-    const rep = readReport_(req.id);
-    if (rep) sheet_('Reports', REPORT_HEADERS).deleteRow(rep.row);
     sheet_('Surveys', SURVEY_HEADERS).deleteRow(target.row);
     return { ok: true };
   } finally {
@@ -274,49 +268,12 @@ function results_(req) {
     count: rows.length,
     areas: areas,
     issues: issueCounts,
-    report: reportFields_(readReport_(survey.id)),
     texts: { useful: texts('useful'), issueDetail: texts('issueDetail'), improve: texts('improve'), wish: texts('wish') },
     // CSV 다운로드용 - 순서를 섞어서 제공
     rows: rows.map(function (r) {
       return { ratings: r.ratings, useful: r.useful, issues: r.issues, issueDetail: r.issueDetail, improve: r.improve, wish: r.wish };
     })
   };
-}
-
-// ---------------------------------------------------------------- 관리자: 보고서 입력 항목
-
-function saveReport_(req) {
-  const fields = req.report || {};
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    if (!readSurveys_().some(function (s) { return s.id === req.id; })) throw userError_('설문을 찾을 수 없습니다.');
-    const row = [req.id]
-      .concat(REPORT_FIELDS.map(function (k) { return cleanText_(fields[k]); }))
-      .concat([today_()]);
-    const sh = sheet_('Reports', REPORT_HEADERS);
-    const existing = readReport_(req.id);
-    if (existing) {
-      const range = sh.getRange(existing.row, 1, 1, row.length);
-      range.setNumberFormat('@');
-      range.setValues([row]);
-    } else {
-      appendRow_(sh, row);
-    }
-    return { ok: true };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function readReport_(surveyId) {
-  return readRows_('Reports', REPORT_HEADERS).filter(function (v) { return String(v[0]) === surveyId; })[0] || null;
-}
-
-function reportFields_(v) {
-  const out = {};
-  REPORT_FIELDS.forEach(function (k, i) { out[k] = v ? readText_(v[1 + i]) : ''; });
-  return out;
 }
 
 // ---------------------------------------------------------------- 시트 읽기/쓰기

@@ -1,4 +1,4 @@
-// 관리자 페이지 - 보고서 PNG 만들기 (센터장 보고용 / 교육 담당자 피드백용)
+// 교육 만족도 설문 보고서 PNG 양식 (센터장 보고용 / 교육 담당자 피드백용) - make-report.js 에서 사용
 // 1920x1080 슬라이드를 화면 밖에 그린 뒤 html2canvas 로 이미지로 바꿉니다.
 window.SurveyReport = (function () {
   const Q = window.SURVEY_QUESTIONS;
