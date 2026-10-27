@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>설문 관리자</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .wrap { max-width: 880px; padding-bottom: 60px; }
+  .login { max-width: 380px; margin: 8vh auto 0; }
+  .login label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
+  .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 12px; margin: 8px 0 4px; }
+  .tabs button {
+    flex: 1; min-height: 42px; border: 0; background: transparent; border-radius: 9px;
+    font-weight: 700; font-size: 14px; color: var(--text-2); cursor: pointer;
+  }
+  .tabs button[aria-selected=true] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .section-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+  .section-sub { font-size: 13px; color: var(--text-2); margin: 0 0 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .tile .k { font-size: 13px; color: var(--text-2); }
+  .tile .v { font-size: 26px; font-weight: 700; line-height: 1.2; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile .v small { font-size: 14px; font-weight: 600; color: var(--text-2); }
+  .tile .s { font-size: 12px; color: var(--text-3); }
+
+  /* 가로 막대 */
+  .hbars { display: grid; gap: 12px; }
+  .hbar { display: grid; grid-template-columns: minmax(96px, 30%) 1fr; gap: 10px; align-items: center; cursor: default; }
+  .hbar .lab { font-size: 14px; font-weight: 600; }
+  .hbar .lab small { display: block; font-weight: 500; font-size: 12px; color: var(--text-3); }
+  .hbars { --mr: 48px; }
+  .hbars.wide { --mr: 92px; }
+  .hbar .track { position: relative; height: 28px; margin-right: var(--mr); }
+  .hbar .grid { position: absolute; inset: 0; display: flex; justify-content: space-between; pointer-events: none; }
+  .hbar .grid i { width: 1px; background: var(--border); }
+  .hbar .fill { position: absolute; left: 0; top: 5px; height: 18px; background: var(--series); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .hbar .val { position: absolute; top: 3px; margin-left: 8px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .axis { display: grid; grid-template-columns: minmax(96px, 30%) 1fr; gap: 10px; margin-top: 4px; --mr: 48px; }
+  .axis .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-right: var(--mr); }
+  .axis .ticks span { width: 1px; display: flex; justify-content: center; }
+  .low .lab { color: var(--danger); }
+  @media (max-width: 600px) { .hbars.wide .hbar { grid-template-columns: 1fr; gap: 2px; } }
+
+  /* 회차별 비교 - 영역별 작은 차트 */
+  .multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .mini { border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px 8px; }
+  .mini h4 { margin: 0 0 8px; font-size: 14px; }
+  .cols { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding-top: 20px; border-bottom: 1px solid var(--border); position: relative; }
+  .cols .c { flex: 1; position: relative; display: flex; justify-content: center; align-items: flex-end; height: 100%; min-width: 0; }
+  .cols .c b { position: absolute; left: 0; right: 0; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .cols .c i { width: 100%; max-width: 34px; background: var(--series); border-radius: 4px 4px 0 0; display: block; }
+  .cols .c.latest i { background: var(--series-strong); }
+  .xl { display: flex; gap: 6px; }
+  .xl span { flex: 1; text-align: center; font-size: 11px; color: var(--text-3); padding-top: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-2); font-weight: 600; }
+  .table-scroll { overflow-x: auto; }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent); }
+
+  .texts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .texts li { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; font-size: 15px; white-space: pre-wrap; }
+  .empty { color: var(--text-3); font-size: 14px; }
+
+  .survey-item { display: grid; gap: 8px; padding: 14px 0; border-top: 1px solid var(--border); }
+  .survey-item:first-child { border-top: 0; padding-top: 0; }
+  .survey-item .t { font-weight: 700; }
+  .survey-item .m { font-size: 13px; color: var(--text-2); }
+  .survey-item .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .survey-item .btn { min-height: 38px; padding: 0 12px; font-size: 13px; }
+  .chip { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+  .chip.on { background: var(--good-soft); color: var(--good); }
+  .chip.wait { background: var(--accent-soft); color: var(--accent); }
+  .chip.off { background: var(--surface-2); color: var(--text-2); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-grid label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px; }
+  .hint { font-size: 12px; color: var(--text-3); margin-top: 6px; }
+  .link-row { display: flex; gap: 8px; }
+  .link-row input { flex: 1; min-width: 0; font-size: 14px; }
+  .ok-box { background: var(--good-soft); color: var(--good); border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 600; }
+
+  #tip {
+    position: fixed; z-index: 60; pointer-events: none; max-width: 240px;
+    background: var(--text); color: var(--bg); border-radius: 8px; padding: 8px 10px;
+    font-size: 12px; line-height: 1.5; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+  }
+  .viz { --series: #2a78d6; --series-strong: #184f95; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .viz { --series: #3987e5; --series-strong: #86b6ef; } }
+  :root[data-theme="dark"] .viz { --series: #3987e5; --series-strong: #86b6ef; }
+</style>
+</head>
+<body>
+<div id="previewBar" class="preview-bar hidden">미리보기 모드 · 아이디/비밀번호: preview / preview</div>
+<div class="wrap viz">
+  <header class="top">
+    <div class="org" id="orgName"></div>
+    <div class="topbar">
+      <h1>교육 만족도 설문 · 관리자</h1>
+      <button class="btn hidden" id="logoutBtn" style="min-height:38px;font-size:13px">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- 로그인 -->
+  <section id="loginView" class="card login hidden">
+    <h2 class="section-title">관리자 로그인</h2>
+    <form id="loginForm">
+      <label for="loginId">아이디</label>
+      <input type="text" id="loginId" autocomplete="username" autocapitalize="off" required>
+      <label for="loginPw">비밀번호</label>
+      <input type="password" id="loginPw" autocomplete="current-password" required>
+      <div id="loginError" class="error-box hidden" style="margin-top:14px"></div>
+      <button class="btn btn-primary btn-block" style="margin-top:18px" id="loginBtn">로그인</button>
+    </form>
+  </section>
+
+  <!-- 관리자 화면 -->
+  <div id="appView" class="hidden">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="results" aria-selected="true">설문 결과</button>
+      <button role="tab" data-tab="trend" aria-selected="false">회차별 비교</button>
+      <button role="tab" data-tab="manage" aria-selected="false">설문 관리</button>
+    </div>
+    <div id="appError" class="error-box hidden" style="margin-top:12px"></div>
+
+    <!-- 설문 결과 -->
+    <div data-panel="results">
+      <div class="card" style="display:grid;gap:10px">
+        <label for="surveySelect" class="section-title" style="margin:0">설문 선택</label>
+        <select id="surveySelect"></select>
+      </div>
+      <div id="resultsBody"></div>
+    </div>
+
+    <!-- 회차별 비교 -->
+    <div data-panel="trend" class="hidden">
+      <section class="card">
+        <h2 class="section-title">회차별 영역 평균 점수</h2>
+        <p class="section-sub">5점 만점 (매우만족 5 · 만족 4 · 보통 3 · 불만족 2 · 매우불만족 1). 진한 막대가 가장 최근 회차입니다.</p>
+        <div id="trendBody"></div>
+      </section>
+    </div>
+
+    <!-- 설문 관리 -->
+    <div data-panel="manage" class="hidden">
+      <section class="card">
+        <h2 class="section-title">상담사 공유용 설문 링크</h2>
+        <p class="section-sub">링크는 회차와 관계없이 항상 같습니다. 설문 기간에만 응답할 수 있고, 기간이 아니면 안내 문구가 표시됩니다.</p>
+        <div class="link-row">
+          <input type="text" id="surveyLink" readonly>
+          <button class="btn" id="copyLink">복사</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title" id="formTitle">새 설문 만들기</h2>
+        <p class="section-sub">시작일을 고르면 마감일이 다음 날(시작일 포함 2일)로 자동 지정됩니다. 필요하면 마감일을 바꿀 수 있습니다.</p>
+        <form id="surveyForm" class="form-grid">
+          <div class="full">
+            <label for="fTitle">설문 제목</label>
+            <input type="text" id="fTitle" maxlength="100" required>
+          </div>
+          <div>
+            <label for="fStart">시작일</label>
+            <input type="date" id="fStart" required>
+          </div>
+          <div>
+            <label for="fEnd">마감일</label>
+            <input type="date" id="fEnd" required>
+          </div>
+          <div class="full" id="formMsg"></div>
+          <div class="full" style="display:flex;gap:8px">
+            <button class="btn btn-primary" id="saveBtn" style="flex:1">설문 만들기</button>
+            <button type="button" class="btn hidden" id="cancelEdit">취소</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">설문 목록</h2>
+        <div id="surveyList"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<div id="tip" class="hidden" role="tooltip"></div>
+
+<script src="config.js"></script>
+<script src="questions.js"></script>
+<script src="api.js"></script>
+<script>
+(function () {
+  const Q = window.SURVEY_QUESTIONS;
+  const cfg = window.SURVEY_CONFIG || {};
+  const $ = function (id) { return document.getElementById(id); };
+  const SCALE_LABEL = { 5: '매우만족', 4: '만족', 3: '보통', 2: '불만족', 1: '매우불만족' };
+  let token = null, surveys = [], today = '', editingId = null, lastResults = null;
+
+  $('orgName').textContent = cfg.ORG_NAME || '';
+  if (SurveyApi.preview) $('previewBar').classList.remove('hidden');
+  $('surveyLink').value = new URL('./', location.href).href;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function fmt(d) { const p = d.split('-'); return p[0] + '.' + p[1] + '.' + p[2]; }
+  function short(d) { const p = d.split('-'); return +p[1] + '/' + +p[2]; }
+  function num(v) { return v == null ? '–' : v.toFixed(2); }
+  function addDays(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
+  function status(s) {
+    if (today < s.start) return '<span class="chip wait">예정</span>';
+    if (today > s.end) return '<span class="chip off">마감</span>';
+    return '<span class="chip on">진행 중</span>';
+  }
+
+  // ---------- 세션
+  try { token = sessionStorage.getItem('admin_token'); } catch (e) {}
+  function setToken(t) { token = t; try { t ? sessionStorage.setItem('admin_token', t) : sessionStorage.removeItem('admin_token'); } catch (e) {} }
+
+  async function api(payload) {
+    payload.token = token;
+    let res;
+    try { res = await SurveyApi.call(payload); }
+    catch (e) { throw new Error('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'); }
+    if (!res.ok) {
+      if (res.error === '로그인이 필요합니다.') { logout(); }
+      throw new Error(res.error || '오류가 발생했습니다.');
+    }
+    return res;
+  }
+  function showError(msg) {
+    $('appError').textContent = msg || '';
+    $('appError').classList.toggle('hidden', !msg);
+  }
+
+  function logout() {
+    setToken(null);
+    $('appView').classList.add('hidden');
+    $('logoutBtn').classList.add('hidden');
+    $('loginView').classList.remove('hidden');
+  }
+  $('logoutBtn').addEventListener('click', logout);
+
+  $('loginForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    $('loginError').classList.add('hidden');
+    $('loginBtn').disabled = true;
+    try {
+      const res = await SurveyApi.call({ action: 'login', id: $('loginId').value.trim(), pw: $('loginPw').value });
+      if (!res.ok) throw new Error(res.error);
+      setToken(res.token);
+      $('loginPw').value = '';
+      await enterApp();
+    } catch (err) {
+      $('loginError').textContent = err.message || '로그인하지 못했습니다.';
+      $('loginError').classList.remove('hidden');
+    } finally {
+      $('loginBtn').disabled = false;
+    }
+  });
+
+  async function enterApp() {
+    $('loginView').classList.add('hidden');
+    $('appView').classList.remove('hidden');
+    $('logoutBtn').classList.remove('hidden');
+    await refreshSurveys(true);
+  }
+
+  // ---------- 탭
+  document.querySelectorAll('[role=tab]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[role=tab]').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
+      document.querySelectorAll('[data-panel]').forEach(function (p) { p.classList.toggle('hidden', p.dataset.panel !== b.dataset.tab); });
+      showError('');
+    });
+  });
+  function goTab(name) { document.querySelector('[data-tab=' + name + ']').click(); }
+
+  // ---------- 설문 목록
+  async function refreshSurveys(pickDefault) {
+    try {
+      const res = await api({ action: 'listSurveys' });
+      surveys = res.surveys; today = res.today;
+    } catch (e) { showError(e.message); return; }
+    renderSurveyList();
+    renderTrend();
+    const sel = $('surveySelect');
+    const prev = sel.value;
+    sel.innerHTML = surveys.length
+      ? surveys.slice().reverse().map(function (s) {
+          return '<option value="' + s.id + '">' + esc(s.title) + ' (' + fmt(s.start) + ' ~ ' + fmt(s.end) + ') · ' + s.count + '명</option>';
+        }).join('')
+      : '<option value="">아직 만든 설문이 없습니다</option>';
+    if (!pickDefault && surveys.some(function (s) { return s.id === prev; })) sel.value = prev;
+    else {
+      // 진행 중인 설문 > 가장 최근 마감 설문 순으로 기본 선택
+      const started = surveys.filter(function (s) { return s.start <= today; });
+      if (started.length) sel.value = started[started.length - 1].id;
+    }
+    loadResults();
+  }
+
+  function renderSurveyList() {
+    if (!surveys.length) { $('surveyList').innerHTML = '<p class="empty">아직 만든 설문이 없습니다. 위에서 새 설문을 만들어 주세요.</p>'; return; }
+    $('surveyList').innerHTML = surveys.slice().reverse().map(function (s) {
+      return '<div class="survey-item">' +
+        '<div><span class="t">' + esc(s.title) + '</span>' + status(s) + '</div>' +
+        '<div class="m">' + fmt(s.start) + ' ~ ' + fmt(s.end) + ' · 응답 ' + s.count + '명</div>' +
+        '<div class="acts">' +
+          '<button class="btn" data-act="view" data-id="' + s.id + '">결과 보기</button>' +
+          '<button class="btn" data-act="edit" data-id="' + s.id + '">수정</button>' +
+          '<button class="btn btn-danger" data-act="del" data-id="' + s.id + '">삭제</button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  $('surveyList').addEventListener('click', async function (e) {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const s = surveys.filter(function (x) { return x.id === b.dataset.id; })[0]; if (!s) return;
+    if (b.dataset.act === 'view') { $('surveySelect').value = s.id; goTab('results'); loadResults(); }
+    if (b.dataset.act === 'edit') {
+      editingId = s.id;
+      $('fTitle').value = s.title; $('fStart').value = s.start; $('fEnd').value = s.end;
+      $('formTitle').textContent = '설문 수정';
+      $('saveBtn').textContent = '수정 저장';
+      $('cancelEdit').classList.remove('hidden');
+      $('formMsg').innerHTML = '';
+      $('surveyForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (b.dataset.act === 'del') {
+      if (!confirm('"' + s.title + '" 설문과 응답 ' + s.count + '건을 모두 삭제합니다.\n삭제하면 되돌릴 수 없습니다. 계속할까요?')) return;
+      try { await api({ action: 'deleteSurvey', id: s.id }); await refreshSurveys(true); }
+      catch (err) { showError(err.message); }
+    }
+  });
+
+  // ---------- 설문 만들기 / 수정
+  function resetForm() {
+    editingId = null;
+    const t = new Date();
+    $('fTitle').value = t.getFullYear() + '년 ' + (t.getMonth() + 1) + '월 교육 만족도 설문';
+    $('fStart').value = ''; $('fEnd').value = '';
+    $('formTitle').textContent = '새 설문 만들기';
+    $('saveBtn').textContent = '설문 만들기';
+    $('cancelEdit').classList.add('hidden');
+  }
+  resetForm();
+  $('cancelEdit').addEventListener('click', function () { resetForm(); $('formMsg').innerHTML = ''; });
+  $('fStart').addEventListener('change', function () {
+    if ($('fStart').value) $('fEnd').value = addDays($('fStart').value, 1);
+  });
+  $('surveyForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    $('formMsg').innerHTML = '';
+    $('saveBtn').disabled = true;
+    try {
+      await api({ action: 'saveSurvey', id: editingId, title: $('fTitle').value.trim(), start: $('fStart').value, end: $('fEnd').value });
+      $('formMsg').innerHTML = '<div class="ok-box">' + (editingId ? '수정했습니다.' : '설문을 만들었습니다.') + '</div>';
+      resetForm();
+      await refreshSurveys(true);
+    } catch (err) {
+      $('formMsg').innerHTML = '<div class="error-box">' + esc(err.message) + '</div>';
+    } finally {
+      $('saveBtn').disabled = false;
+    }
+  });
+
+  $('copyLink').addEventListener('click', async function () {
+    try { await navigator.clipboard.writeText($('surveyLink').value); }
+    catch (e) { $('surveyLink').select(); document.execCommand('copy'); }
+    $('copyLink').textContent = '복사됨';
+    setTimeout(function () { $('copyLink').textContent = '복사'; }, 1500);
+  });
+
+  // ---------- 결과
+  $('surveySelect').addEventListener('change', loadResults);
+
+  async function loadResults() {
+    const id = $('surveySelect').value;
+    const body = $('resultsBody');
+    if (!id) { body.innerHTML = '<div class="card"><p class="empty">"설문 관리" 탭에서 설문을 먼저 만들어 주세요.</p></div>'; return; }
+    body.innerHTML = '<div class="loading">결과를 불러오는 중…</div>';
+    let r;
+    try { r = await api({ action: 'results', id: id }); }
+    catch (err) { body.innerHTML = ''; showError(err.message); return; }
+    if ($('surveySelect').value !== id) return;
+    lastResults = r;
+    renderResults(r);
+  }
+
+  function renderResults(r) {
+    const s = surveys.filter(function (x) { return x.id === r.survey.id; })[0] || r.survey;
+    const body = $('resultsBody');
+    if (!r.count) {
+      body.innerHTML = '<div class="card"><p class="empty">아직 응답이 없습니다. (' + fmt(r.survey.start) + ' ~ ' + fmt(r.survey.end) + ')</p></div>';
+      return;
+    }
+    const avgs = r.areas.map(function (a) { return a.average; }).filter(function (v) { return v != null; });
+    const overall = avgs.reduce(function (a, b) { return a + b; }, 0) / avgs.length;
+    const sorted = r.areas.slice().sort(function (a, b) { return a.average - b.average; });
+    const low = sorted[0], high = sorted[sorted.length - 1];
+    const lowShare = function (a) { return (a.dist[3] + a.dist[4]) / r.count; };
+
+    let html = '';
+    html += '<div class="tiles">' +
+      tile('응답 수', r.count + '<small>명</small>', fmt(r.survey.start) + ' ~ ' + fmt(r.survey.end)) +
+      tile('전체 평균', overall.toFixed(2) + '<small> / 5</small>', '5개 영역 평균') +
+      tile('가장 낮은 영역', esc(low.name), num(low.average) + '점 · 불만족 이하 ' + Math.round(lowShare(low) * 100) + '%') +
+      tile('가장 높은 영역', esc(high.name), num(high.average) + '점') +
+      '</div>';
+
+    // 1. 영역별 평균
+    html += '<section class="card"><h2 class="section-title">1. 영역별 만족도 평균</h2>' +
+      '<p class="section-sub">5점 만점 · 막대에 손가락을 대거나 마우스를 올리면 응답 분포가 보입니다. 빨간 글씨는 3점(보통) 미만입니다.</p>' +
+      '<div class="hbars">' + r.areas.map(function (a) {
+        const tip = '<b>' + esc(a.name) + '</b> 평균 ' + num(a.average) + '점<br>' +
+          [5, 4, 3, 2, 1].map(function (v, i) { return SCALE_LABEL[v] + ' ' + a.dist[i] + '명'; }).join('<br>');
+        return '<div class="hbar' + (a.average < 3 ? ' low' : '') + '" data-tip="' + esc(tip) + '" tabindex="0">' +
+          '<div class="lab">' + esc(a.name) + '<small>불만족 이하 ' + Math.round(lowShare(a) * 100) + '%</small></div>' +
+          '<div class="track"><div class="grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+          '<div class="fill" style="width:' + (a.average / 5 * 100) + '%"></div><span class="val" style="left:' + (a.average / 5 * 100) + '%">' + num(a.average) + '</span></div></div>';
+      }).join('') + '</div>' +
+      '<div class="axis"><span></span><div class="ticks"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>' +
+      '<details><summary>표로 보기 (응답 분포)</summary><div class="table-scroll"><table><thead><tr><th>영역</th><th>평균</th>' +
+      [5, 4, 3, 2, 1].map(function (v) { return '<th>' + SCALE_LABEL[v] + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      r.areas.map(function (a) {
+        return '<tr><td>' + esc(a.name) + '</td><td>' + num(a.average) + '</td>' + a.dist.map(function (d) { return '<td>' + d + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div></details></section>';
+
+    // 2. 아쉬운 점
+    const issues = r.issues.slice().sort(function (a, b) { return b.count - a.count; });
+    const maxIssue = Math.max.apply(null, issues.map(function (i) { return i.count; }).concat([1]));
+    html += '<section class="card"><h2 class="section-title">2. 교육에서 아쉬웠던 점</h2>' +
+      '<p class="section-sub">복수 선택 · 응답자 ' + r.count + '명 중 선택한 사람 수</p>' +
+      '<div class="hbars wide">' + issues.map(function (i) {
+        const pct = Math.round(i.count / r.count * 100);
+        return '<div class="hbar" data-tip="' + esc('<b>' + esc(i.name) + '</b><br>' + i.count + '명 (' + pct + '%)') + '" tabindex="0">' +
+          '<div class="lab">' + esc(i.name) + '</div>' +
+          '<div class="track"><div class="fill" style="width:' + (i.count / maxIssue * 100) + '%"></div>' +
+          '<span class="val" style="left:' + (i.count / maxIssue * 100) + '%">' + i.count + '명 · ' + pct + '%</span></div></div>';
+      }).join('') + '</div>' +
+      textList('구체적인 상황', r.texts.issueDetail) + '</section>';
+
+    html += '<section class="card"><h2 class="section-title">3. 개선 사항</h2>' + textList(null, r.texts.improve) + '</section>';
+    html += '<section class="card"><h2 class="section-title">4. 향후 희망하는 교육</h2>' + textList(null, r.texts.wish) + '</section>';
+    html += '<section class="card"><h2 class="section-title">엑셀로 내려받기</h2>' +
+      '<p class="section-sub">전체 응답을 CSV 파일로 받습니다. 개인 식별을 막기 위해 응답 순서는 무작위로 섞여 있습니다.</p>' +
+      '<button class="btn btn-primary" id="csvBtn">CSV 다운로드</button></section>';
+    body.innerHTML = html;
+    $('csvBtn').addEventListener('click', function () { downloadCsv(lastResults); });
+  }
+
+  function tile(k, v, s) {
+    return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>';
+  }
+  function textList(title, items) {
+    const head = title ? '<h3 class="sub-label" style="margin-top:22px">' + title + ' (' + items.length + '건)</h3>' : '<p class="section-sub">' + items.length + '건 · 순서는 무작위입니다</p>';
+    if (!items.length) return head + '<p class="empty">작성된 내용이 없습니다.</p>';
+    return head + '<ul class="texts">' + items.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
+  }
+
+  function downloadCsv(r) {
+    const head = ['번호'].concat(Q.areas.map(function (a, i) { return '1-' + (i + 1) + ' ' + a.name + ' (5=매우만족~1=매우불만족)'; }))
+      .concat(['2. 아쉬웠던 점', '2. 구체적인 상황', '3. 개선 사항', '4. 희망 교육']);
+    const lines = [head].concat(r.rows.map(function (row, i) {
+      return [i + 1].concat(row.ratings).concat([row.issues.join(', '), row.issueDetail, row.improve, row.wish]);
+    }));
+    const csv = lines.map(function (l) {
+      return l.map(function (v) {
+        let t = String(v == null ? '' : v);
+        if (/^[=+\-@]/.test(t)) t = "'" + t;   // 엑셀 수식 방지
+        return '"' + t.replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = r.survey.title.replace(/[\\/:*?"<>|]/g, '') + '_' + r.survey.start + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  // ---------- 회차별 비교
+  function renderTrend() {
+    const done = surveys.filter(function (s) { return s.count > 0; });
+    if (!done.length) { $('trendBody').innerHTML = '<p class="empty">응답이 있는 설문이 아직 없습니다.</p>'; return; }
+    let html = '<div class="multiples">' + Q.areas.map(function (a, ai) {
+      return '<div class="mini"><h4>' + esc(a.name) + '</h4><div class="cols">' + done.map(function (s, si) {
+        const v = s.averages[ai];
+        const tip = '<b>' + esc(s.title) + '</b><br>' + fmt(s.start) + ' · 응답 ' + s.count + '명<br>' + esc(a.name) + ' 평균 ' + num(v) + '점';
+        return '<div class="c' + (si === done.length - 1 ? ' latest' : '') + '" data-tip="' + esc(tip) + '" tabindex="0">' +
+          '<b style="bottom:calc(' + ((v || 0) / 5 * 100) + '% + 3px)">' + num(v) + '</b><i style="height:' + ((v || 0) / 5 * 100) + '%"></i></div>';
+      }).join('') + '</div><div class="xl">' + done.map(function (s) { return '<span>' + short(s.start) + '</span>'; }).join('') + '</div></div>';
+    }).join('') + '</div>';
+    html += '<details><summary>표로 보기</summary><div class="table-scroll"><table><thead><tr><th>설문</th><th>응답</th>' +
+      Q.areas.map(function (a) { return '<th>' + esc(a.name) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      done.map(function (s) {
+        return '<tr><td>' + esc(s.title) + '<br><small>' + fmt(s.start) + '</small></td><td>' + s.count + '</td>' +
+          s.averages.map(function (v) { return '<td>' + num(v) + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div></details>';
+    $('trendBody').innerHTML = html;
+  }
+
+  // ---------- 툴팁 (마우스 hover / 모바일 탭)
+  const tip = $('tip');
+  let tipFor = null;
+  function showTip(el, x, y) {
+    tipFor = el;
+    tip.innerHTML = el.dataset.tip;
+    tip.classList.remove('hidden');
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x + 12)) + 'px';
+    tip.style.top = (y - h - 12 < 8 ? y + 16 : y - h - 12) + 'px';
+  }
+  function hideTip() { tipFor = null; tip.classList.add('hidden'); }
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    const el = e.target.closest('[data-tip]');
+    el ? showTip(el, e.clientX, e.clientY) : hideTip();
+  });
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest('[data-tip]');
+    if (el && el !== tipFor) { const r = el.getBoundingClientRect(); showTip(el, e.clientX || r.left, e.clientY || r.top); }
+    else hideTip();
+  });
+  document.addEventListener('focusin', function (e) {
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    if (el) { const r = el.getBoundingClientRect(); showTip(el, r.left + r.width / 2, r.top); }
+  });
+  window.addEventListener('scroll', hideTip, { passive: true });
+
+  // ---------- 시작
+  if (token) enterApp(); else logout();
+})();
+</script>
+</body>
+</html>

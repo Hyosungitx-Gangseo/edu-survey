@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>교육 만족도 설문</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="previewBar" class="preview-bar hidden">미리보기 모드 · 응답이 이 기기에만 저장됩니다</div>
+<div class="wrap">
+  <header class="top">
+    <div class="org" id="orgName"></div>
+    <h1 id="title">교육 만족도 설문</h1>
+    <p class="period" id="period"></p>
+  </header>
+
+  <section class="card notice" aria-label="안내">
+    <p><span class="ic" aria-hidden="true">🔒</span><span><span class="strong">본 설문은 익명으로 진행되며 개인을 식별하지 않습니다.</span><br>이름·사번 등 개인 정보는 수집하지 않으니 솔직하게 작성해 주세요.</span></p>
+    <p><span class="ic" aria-hidden="true">☝️</span><span><span class="strong">설문은 한 사람당 한 번만 참여해 주세요.</span><br>이미 제출하셨다면 다시 제출하지 않으셔도 됩니다.</span></p>
+  </section>
+
+  <div id="loading" class="loading">설문을 불러오는 중…</div>
+  <div id="stateBox"></div>
+
+  <form id="form" class="hidden" novalidate>
+    <section class="card" id="q1">
+      <h2 class="q-title">1. 현재 교육에 대해 영역별로 얼마나 만족하시나요?<span class="req">필수</span></h2>
+      <p class="q-help">각 항목마다 하나씩 선택해 주세요.</p>
+      <div id="areas"></div>
+    </section>
+
+    <section class="card" id="q2">
+      <h2 class="q-title">2. 교육에서 아쉬웠던 점은 무엇인가요?<span class="req">필수</span></h2>
+      <p class="q-help">해당하는 것을 모두 선택해 주세요.</p>
+      <div class="checks" id="issues"></div>
+      <label class="sub-label" for="issueDetail">어떤 상황에서 그렇게 느끼셨는지 구체적으로 적어주세요.<span class="opt">선택</span></label>
+      <textarea id="issueDetail" maxlength="2000" placeholder="예) 실습 없이 이론만 설명해서 실제 상담에 적용하기 어려웠어요."></textarea>
+      <div class="counter" data-for="issueDetail"></div>
+    </section>
+
+    <section class="card" id="q3">
+      <h2 class="q-title">3. 개선 사항이 있다면 말씀해주세요.<span class="opt">선택</span></h2>
+      <p class="q-help">어떻게 바뀌면 좋을지 자유롭게 적어주세요.</p>
+      <textarea id="improve" maxlength="2000" placeholder="예) 교육 시간을 콜이 적은 시간대로 옮겨주세요."></textarea>
+      <div class="counter" data-for="improve"></div>
+    </section>
+
+    <section class="card" id="q4">
+      <h2 class="q-title">4. 향후 희망하는 교육이 있다면 말씀해주세요.<span class="opt">선택</span></h2>
+      <p class="q-help">주제, 방식, 형태 등 무엇이든 좋습니다.</p>
+      <textarea id="wish" maxlength="2000" placeholder="예) 민원 응대 롤플레이, 신규 상품 사례 교육"></textarea>
+      <div class="counter" data-for="wish"></div>
+    </section>
+
+    <footer class="foot">작성하신 내용은 교육 개선 목적으로만 사용됩니다.</footer>
+
+    <div class="submit-bar">
+      <div class="inner">
+        <div class="progress" id="progress"></div>
+        <button type="submit" class="btn btn-primary btn-block" id="submitBtn">제출하기</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div id="confirm" class="modal-bg hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal">
+    <h3 id="confirmTitle">설문을 제출할까요?</h3>
+    <p>제출한 뒤에는 <b>수정하거나 다시 제출할 수 없습니다.</b><br>응답 내용을 한 번 더 확인해 주세요.</p>
+    <div id="submitError" class="error-box hidden" style="margin-bottom:12px"></div>
+    <div class="row">
+      <button type="button" class="btn" id="cancelBtn">다시 확인</button>
+      <button type="button" class="btn btn-primary" id="okBtn">제출하기</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="questions.js"></script>
+<script src="api.js"></script>
+<script>
+(function () {
+  const Q = window.SURVEY_QUESTIONS;
+  const cfg = window.SURVEY_CONFIG || {};
+  const $ = function (id) { return document.getElementById(id); };
+  let survey = null;
+
+  $('orgName').textContent = cfg.ORG_NAME || '';
+  if (SurveyApi.preview) $('previewBar').classList.remove('hidden');
+
+  // ---------- 제출 기록 (이 기기) : localStorage + 쿠키 두 곳에 남김
+  function flagKey(id) { return 'edu_survey_submitted_' + id; }
+  function getSubmitted(id) {
+    try { const v = localStorage.getItem(flagKey(id)); if (v) return v; } catch (e) {}
+    const m = document.cookie.match(new RegExp('(?:^|; )' + flagKey(id) + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function setSubmitted(id, date) {
+    try { localStorage.setItem(flagKey(id), date); } catch (e) {}
+    document.cookie = flagKey(id) + '=' + encodeURIComponent(date) + '; max-age=' + (60 * 60 * 24 * 180) + '; path=/; SameSite=Lax';
+  }
+
+  function fmt(d) {
+    const p = d.split('-');
+    const day = '일월화수목금토'.charAt(new Date(+p[0], p[1] - 1, +p[2]).getDay());
+    return +p[1] + '월 ' + +p[2] + '일(' + day + ')';
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+
+  function showState(kind, icon, title, lines, stamp) {
+    $('form').classList.add('hidden');
+    $('stateBox').innerHTML =
+      '<section class="card state ' + kind + '" role="status">' +
+      '<div class="big-ic" aria-hidden="true">' + icon + '</div>' +
+      '<h2>' + title + '</h2>' +
+      lines.map(function (l) { return '<p>' + l + '</p>'; }).join('') +
+      (stamp ? '<div class="stamp">' + stamp + '</div>' : '') +
+      '</section>';
+  }
+
+  function showSubmitted(date, justNow) {
+    showState('done', '✓',
+      justNow ? '제출이 완료되었습니다' : '이미 이 설문에 응답하셨습니다',
+      justNow
+        ? ['소중한 의견 감사합니다.', '이 설문은 한 번만 참여하실 수 있어 다시 제출하지 않으셔도 됩니다.']
+        : ['한 사람당 한 번만 참여할 수 있어 다시 제출하지 않으셔도 됩니다.', '참여해 주셔서 감사합니다.'],
+      '✓ ' + fmt(date) + ' 제출 완료');
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- 문항 렌더링
+  function buildForm() {
+    $('areas').innerHTML = Q.areas.map(function (a, i) {
+      return '<div class="area" id="area' + i + '" role="radiogroup" aria-labelledby="areaName' + i + '">' +
+        '<div class="area-name" id="areaName' + i + '">1-' + (i + 1) + '. ' + esc(a.name) + '</div>' +
+        '<div class="area-desc">' + esc(a.desc) + '</div>' +
+        '<div class="scale">' + Q.scale.map(function (s) {
+          const label = s.label.replace(/^매우/, '매우<br>');
+          return '<label><input type="radio" name="r' + i + '" value="' + s.value + '"><span>' + label + '</span></label>';
+        }).join('') + '</div></div>';
+    }).join('');
+
+    $('issues').innerHTML = Q.issues.concat([Q.issueNone]).map(function (name) {
+      return '<label><input type="checkbox" name="issue" value="' + esc(name) + '"><span>' + esc(name) + '</span></label>';
+    }).join('');
+
+    // "특별히 없음"은 다른 항목과 함께 선택되지 않도록
+    $('issues').addEventListener('change', function (e) {
+      const boxes = Array.prototype.slice.call(document.querySelectorAll('input[name=issue]'));
+      if (!e.target.checked) return;
+      boxes.forEach(function (b) {
+        if (b === e.target) return;
+        if (e.target.value === Q.issueNone || b.value === Q.issueNone) b.checked = false;
+      });
+    });
+
+    document.querySelectorAll('.counter').forEach(function (c) {
+      const t = $(c.dataset.for);
+      const upd = function () { c.textContent = t.value.length + ' / 2000'; };
+      t.addEventListener('input', upd); upd();
+    });
+
+    $('form').addEventListener('change', function (e) {
+      const box = e.target.closest('.area, #q2');
+      if (box) clearMissing(box);
+      updateProgress();
+    });
+    updateProgress();
+  }
+
+  function collect() {
+    return {
+      ratings: Q.areas.map(function (_, i) {
+        const c = document.querySelector('input[name=r' + i + ']:checked');
+        return c ? Number(c.value) : null;
+      }),
+      issues: Array.prototype.map.call(document.querySelectorAll('input[name=issue]:checked'), function (b) { return b.value; }),
+      issueDetail: $('issueDetail').value,
+      improve: $('improve').value,
+      wish: $('wish').value
+    };
+  }
+
+  function updateProgress() {
+    const a = collect();
+    const done = a.ratings.filter(function (r) { return r; }).length + (a.issues.length ? 1 : 0);
+    const total = Q.areas.length + 1;
+    $('progress').textContent = done < total ? '필수 문항 ' + done + ' / ' + total + ' 응답' : '필수 문항을 모두 응답했습니다';
+  }
+
+  function markMissing(el, msg) {
+    el.classList.add('missing');
+    if (!el.querySelector('.missing-msg')) {
+      const m = document.createElement('div');
+      m.className = 'missing-msg'; m.textContent = msg;
+      el.appendChild(m);
+    }
+  }
+  function clearMissing(el) {
+    el.classList.remove('missing');
+    const m = el.querySelector('.missing-msg'); if (m) m.remove();
+  }
+
+  // ---------- 제출
+  let sending = false;
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const a = collect();
+    let first = null;
+    a.ratings.forEach(function (r, i) {
+      if (!r) { const el = $('area' + i); markMissing(el, '만족도를 선택해 주세요.'); first = first || el; }
+    });
+    if (!a.issues.length) { markMissing($('q2'), '하나 이상 선택해 주세요.'); first = first || $('q2'); }
+    if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    $('submitError').classList.add('hidden');
+    $('confirm').classList.remove('hidden');
+  });
+  $('cancelBtn').addEventListener('click', function () { if (!sending) $('confirm').classList.add('hidden'); });
+  $('okBtn').addEventListener('click', async function () {
+    if (sending) return;
+    if (getSubmitted(survey.id)) { $('confirm').classList.add('hidden'); showSubmitted(getSubmitted(survey.id)); return; }
+    sending = true;
+    $('okBtn').disabled = $('cancelBtn').disabled = true;
+    $('okBtn').textContent = '제출 중…';
+    try {
+      const res = await SurveyApi.call({ action: 'submit', surveyId: survey.id, answers: collect() });
+      if (!res.ok) throw new Error(res.error || '제출하지 못했습니다.');
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+      setSubmitted(survey.id, today);
+      $('confirm').classList.add('hidden');
+      showSubmitted(today, true);
+    } catch (err) {
+      $('submitError').textContent = err.message === 'network' || err.name === 'TypeError'
+        ? '네트워크 오류로 제출하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+        : err.message;
+      $('submitError').classList.remove('hidden');
+    } finally {
+      sending = false;
+      $('okBtn').disabled = $('cancelBtn').disabled = false;
+      $('okBtn').textContent = '제출하기';
+    }
+  });
+
+  // ---------- 시작
+  (async function init() {
+    try {
+      const res = await SurveyApi.call({ action: 'active' });
+      $('loading').classList.add('hidden');
+      if (!res.ok) throw new Error(res.error);
+      survey = res.survey;
+      if (!survey) {
+        const up = res.upcoming;
+        showState('idle', '🗓️', '지금은 진행 중인 설문이 없습니다',
+          up ? ['다음 설문은 <b>' + fmt(up.start) + ' ~ ' + fmt(up.end) + '</b>에 진행됩니다.'] : ['설문 기간에 다시 접속해 주세요.']);
+        return;
+      }
+      document.title = survey.title;
+      $('title').textContent = survey.title;
+      $('period').textContent = '응답 기간 ' + fmt(survey.start) + ' ~ ' + fmt(survey.end);
+      const done = getSubmitted(survey.id);
+      if (done) { showSubmitted(done); return; }
+      buildForm();
+      $('form').classList.remove('hidden');
+    } catch (err) {
+      $('loading').classList.add('hidden');
+      showState('idle', '⚠️', '설문을 불러오지 못했습니다', ['잠시 후 다시 접속해 주세요.']);
+    }
+  })();
+})();
+</script>
+</body>
+</html>
