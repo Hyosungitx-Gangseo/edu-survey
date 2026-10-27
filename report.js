@@ -75,6 +75,17 @@ window.SurveyReport = (function () {
 .rpt .kct h3 .lab { font-size: 14px; font-weight: 800; letter-spacing: .06em; padding: 2px 9px; border-radius: 5px; color: #fff; margin-right: 10px; vertical-align: 3px; }
 .rpt .keep .lab { background: #1a7f3c; } .rpt .change .lab { background: #c0352f; } .rpt .try .lab { background: #2a78d6; }
 .rpt .arrow { color: #2a78d6; font-weight: 700; }
+.rpt .page.t1 .kpi { padding: 10px 24px; }
+.rpt .page.t1 .grid2 { margin-top: 14px; }
+.rpt .page.t1 .kct { margin-top: 12px; }
+.rpt .page.t1 .dist { margin-bottom: 8px; }
+.rpt .page.t1 .ib { margin-bottom: 7px; }
+.rpt .page.t1 ul.pts li, .rpt .page.t1 ol.acts li { font-size: 15.5px; margin-bottom: 5px; }
+.rpt .page.t1 .box { padding: 12px 20px; }
+.rpt .page.t2 .ib .l { font-size: 16px; }
+.rpt .page.t2 .dist .seg { height: 28px; }
+.rpt .page.t2 .panel .sub { margin-bottom: 8px; }
+.rpt .page.t2 ul.pts li, .rpt .page.t2 ol.acts li, .rpt .page.t2 .insight { font-size: 14.5px; line-height: 1.45; }
 .rpt .rcols { display: grid; grid-template-columns: 0.62fr 1.5fr 1.35fr 0.85fr; gap: 20px; margin-top: 22px; flex: 1; min-height: 0; align-items: start; }
 .rpt .rcol h2 { font-size: 19px; font-weight: 800; padding-bottom: 8px; border-bottom: 2px solid #0b0b0b; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
 .rpt .rcol h2 small { font-size: 14px; color: #75746f; font-weight: 500; }
@@ -334,6 +345,7 @@ window.SurveyReport = (function () {
     const out = [];
     for (let i = 0; i < pagesHtml.length; i++) {
       host.innerHTML = pagesHtml[i];
+      fitPage(host.firstChild);
       const pg = host.querySelector('.pg');
       if (pg && pagesHtml.length > 1) pg.textContent = (i + 1) + ' / ' + pagesHtml.length;
       const canvas = await window.html2canvas(host.firstChild, {
@@ -342,6 +354,13 @@ window.SurveyReport = (function () {
       out.push(canvas.toDataURL('image/png'));
     }
     return out;
+  }
+
+  // 입력 내용이 길어 아래 안내문이 밀려나면 글자·간격을 단계적으로 줄임
+  function fitPage(page) {
+    const over = function () { return page.querySelector('.foot').getBoundingClientRect().bottom > page.getBoundingClientRect().bottom - 20; };
+    if (over()) page.classList.add('t1');
+    if (over()) page.classList.add('t2');
   }
 
   // kind: 'center' | 'trainer'
