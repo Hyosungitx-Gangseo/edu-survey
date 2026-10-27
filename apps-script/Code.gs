@@ -38,7 +38,7 @@ const ISSUE_NONE = '특별히 없음';
 const SURVEY_HEADERS = ['id', 'title', 'start', 'end', 'createdAt'];
 const RESPONSE_HEADERS = ['surveyId', 'date']
   .concat(AREAS.map(function (a, i) { return 'r' + (i + 1); }))
-  .concat(['issues', 'issueDetail', 'improve', 'wish']);
+  .concat(['issues', 'issueDetail', 'improve', 'wish', 'useful']);
 
 // ---------------------------------------------------------------- 진입점
 
@@ -97,9 +97,9 @@ function submit_(req) {
     if ([1, 2, 3, 4, 5].indexOf(r) < 0) throw userError_('만족도 응답 값이 올바르지 않습니다.');
   });
   const issues = Array.isArray(a.issues) ? a.issues.filter(function (v, i, arr) { return arr.indexOf(v) === i; }) : [];
-  if (!issues.length) throw userError_('2번 문항에서 하나 이상 선택해 주세요.');
+  if (!issues.length) throw userError_('3번 문항에서 하나 이상 선택해 주세요.');
   issues.forEach(function (v) {
-    if (ISSUES.indexOf(v) < 0) throw userError_('2번 문항 응답 값이 올바르지 않습니다.');
+    if (ISSUES.indexOf(v) < 0) throw userError_('3번 문항 응답 값이 올바르지 않습니다.');
   });
   if (issues.indexOf(ISSUE_NONE) >= 0 && issues.length > 1) throw userError_('"특별히 없음"은 다른 항목과 함께 선택할 수 없습니다.');
 
@@ -118,7 +118,8 @@ function submit_(req) {
         issues.join(' | '),
         cleanText_(a.issueDetail),
         cleanText_(a.improve),
-        cleanText_(a.wish)
+        cleanText_(a.wish),
+        cleanText_(a.useful)
       ]);
     appendRow_(sheet_('Responses', RESPONSE_HEADERS), row);
   } finally {
@@ -269,10 +270,10 @@ function results_(req) {
     count: rows.length,
     areas: areas,
     issues: issueCounts,
-    texts: { issueDetail: texts('issueDetail'), improve: texts('improve'), wish: texts('wish') },
+    texts: { useful: texts('useful'), issueDetail: texts('issueDetail'), improve: texts('improve'), wish: texts('wish') },
     // CSV 다운로드용 - 순서를 섞어서 제공
     rows: rows.map(function (r) {
-      return { ratings: r.ratings, issues: r.issues, issueDetail: r.issueDetail, improve: r.improve, wish: r.wish };
+      return { ratings: r.ratings, useful: r.useful, issues: r.issues, issueDetail: r.issueDetail, improve: r.improve, wish: r.wish };
     })
   };
 }
@@ -329,7 +330,8 @@ function readResponses_() {
         issues: String(v[2 + n] || '').split(' | ').filter(String),
         issueDetail: readText_(v[3 + n]),
         improve: readText_(v[4 + n]),
-        wish: readText_(v[5 + n])
+        wish: readText_(v[5 + n]),
+        useful: readText_(v[6 + n])
       };
     });
 }

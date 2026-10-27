@@ -434,10 +434,12 @@
         return '<tr><td>' + esc(a.name) + '</td><td>' + num(a.average) + '</td>' + a.dist.map(function (d) { return '<td>' + d + '</td>'; }).join('') + '</tr>';
       }).join('') + '</tbody></table></div></details></section>';
 
-    // 2. 아쉬운 점
+    html += '<section class="card"><h2 class="section-title">2. 교육 중 유익했던 내용</h2>' + textList(null, r.texts.useful) + '</section>';
+
+    // 3. 아쉬운 점
     const issues = r.issues.slice().sort(function (a, b) { return b.count - a.count; });
     const maxIssue = Math.max.apply(null, issues.map(function (i) { return i.count; }).concat([1]));
-    html += '<section class="card"><h2 class="section-title">2. 교육에서 아쉬웠던 점</h2>' +
+    html += '<section class="card"><h2 class="section-title">3. 교육에서 아쉬웠던 점</h2>' +
       '<p class="section-sub">복수 선택 · 응답자 ' + r.count + '명 중 선택한 사람 수</p>' +
       '<div class="hbars wide">' + issues.map(function (i) {
         const pct = Math.round(i.count / r.count * 100);
@@ -448,8 +450,8 @@
       }).join('') + '</div>' +
       textList('구체적인 상황', r.texts.issueDetail) + '</section>';
 
-    html += '<section class="card"><h2 class="section-title">3. 개선 사항</h2>' + textList(null, r.texts.improve) + '</section>';
-    html += '<section class="card"><h2 class="section-title">4. 향후 희망하는 교육</h2>' + textList(null, r.texts.wish) + '</section>';
+    html += '<section class="card"><h2 class="section-title">4. 개선 사항</h2>' + textList(null, r.texts.improve) + '</section>';
+    html += '<section class="card"><h2 class="section-title">5. 향후 희망하는 교육</h2>' + textList(null, r.texts.wish) + '</section>';
     html += '<section class="card"><h2 class="section-title">엑셀로 내려받기</h2>' +
       '<p class="section-sub">전체 응답을 CSV 파일로 받습니다. 개인 식별을 막기 위해 응답 순서는 무작위로 섞여 있습니다.</p>' +
       '<button class="btn btn-primary" id="csvBtn">CSV 다운로드</button></section>';
@@ -468,9 +470,9 @@
 
   function downloadCsv(r) {
     const head = ['번호'].concat(Q.areas.map(function (a, i) { return '1-' + (i + 1) + ' ' + a.name + ' (5=매우만족~1=매우불만족)'; }))
-      .concat(['2. 아쉬웠던 점', '2. 구체적인 상황', '3. 개선 사항', '4. 희망 교육']);
+      .concat(['2. 유익했던 내용', '3. 아쉬웠던 점', '3. 구체적인 상황', '4. 개선 사항', '5. 희망 교육']);
     const lines = [head].concat(r.rows.map(function (row, i) {
-      return [i + 1].concat(row.ratings).concat([row.issues.join(', '), row.issueDetail, row.improve, row.wish]);
+      return [i + 1].concat(row.ratings).concat([row.useful, row.issues.join(', '), row.issueDetail, row.improve, row.wish]);
     }));
     const csv = lines.map(function (l) {
       return l.map(function (v) {

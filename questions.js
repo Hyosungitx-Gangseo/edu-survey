@@ -25,8 +25,9 @@ window.SURVEY_QUESTIONS = {
   ],
   issueNone: '특별히 없음',
   texts: {
-    issueDetail: '2. 아쉬웠던 점의 구체적인 상황',
-    improve: '3. 개선 사항',
-    wish: '4. 향후 희망하는 교육'
+    useful: '2. 교육 중 유익했던 내용',
+    issueDetail: '3. 아쉬웠던 점의 구체적인 상황',
+    improve: '4. 개선 사항',
+    wish: '5. 향후 희망하는 교육'
   }
 };

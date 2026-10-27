@@ -32,8 +32,15 @@
       <div id="areas"></div>
     </section>
 
+    <section class="card" id="qUseful">
+      <h2 class="q-title">2. 교육 중 유익했던 내용을 말씀해주세요.<span class="opt">선택</span></h2>
+      <p class="q-help">도움이 되었거나 계속 유지되었으면 하는 내용을 적어주세요.</p>
+      <textarea id="useful" maxlength="2000" placeholder="예) 실제 민원 사례를 함께 분석한 시간이 상담에 도움이 됐어요."></textarea>
+      <div class="counter" data-for="useful"></div>
+    </section>
+
     <section class="card" id="q2">
-      <h2 class="q-title">2. 교육에서 아쉬웠던 점은 무엇인가요?<span class="req">필수</span></h2>
+      <h2 class="q-title">3. 교육에서 아쉬웠던 점은 무엇인가요?<span class="req">필수</span></h2>
       <p class="q-help">해당하는 것을 모두 선택해 주세요.</p>
       <div class="checks" id="issues"></div>
       <label class="sub-label" for="issueDetail">어떤 상황에서 그렇게 느끼셨는지 구체적으로 적어주세요.<span class="opt">선택</span></label>
@@ -42,14 +49,14 @@
     </section>
 
     <section class="card" id="q3">
-      <h2 class="q-title">3. 개선 사항이 있다면 말씀해주세요.<span class="opt">선택</span></h2>
+      <h2 class="q-title">4. 개선 사항이 있다면 말씀해주세요.<span class="opt">선택</span></h2>
       <p class="q-help">어떻게 바뀌면 좋을지 자유롭게 적어주세요.</p>
       <textarea id="improve" maxlength="2000" placeholder="예) 교육 시간을 콜이 적은 시간대로 옮겨주세요."></textarea>
       <div class="counter" data-for="improve"></div>
     </section>
 
     <section class="card" id="q4">
-      <h2 class="q-title">4. 향후 희망하는 교육이 있다면 말씀해주세요.<span class="opt">선택</span></h2>
+      <h2 class="q-title">5. 향후 희망하는 교육이 있다면 말씀해주세요.<span class="opt">선택</span></h2>
       <p class="q-help">주제, 방식, 형태 등 무엇이든 좋습니다.</p>
       <textarea id="wish" maxlength="2000" placeholder="예) 민원 응대 롤플레이, 신규 상품 사례 교육"></textarea>
       <div class="counter" data-for="wish"></div>
@@ -179,6 +186,7 @@
         const c = document.querySelector('input[name=r' + i + ']:checked');
         return c ? Number(c.value) : null;
       }),
+      useful: $('useful').value,
       issues: Array.prototype.map.call(document.querySelectorAll('input[name=issue]:checked'), function (b) { return b.value; }),
       issueDetail: $('issueDetail').value,
       improve: $('improve').value,
