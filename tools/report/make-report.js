@@ -3,7 +3,7 @@
 //   node tools/report/make-report.js \
 //     --csv 응답.csv --title "2026.10.27 저점톡 교육 만족도 설문" --start 2026-10-27 --end 2026-10-28 \
 //     --summary summary.json --out 출력폴더 \
-//     [--prev 지난회차.csv --prev-title "..." --prev-start 2026-09-20] [--today 2026-10-28] \
+//     [--prev 지난회차.csv --prev-title "..." --prev-start 2026-09-20] [--today 2026-10-28] [--final 1] \
 //     [--html2canvas node_modules/html2canvas/dist/html2canvas.min.js]
 //
 // summary.json: { opinions, insight, actions, keep, change, try } - 한 줄에 한 항목 (README 참고)
@@ -84,7 +84,9 @@ function aggregate(file, Q, survey) {
     surveys.push({ id: 'prev', title: p.survey.title, start: p.survey.start, count: p.count, averages: p.areas.map(function (x) { return x.average; }) });
   }
   surveys.push({ id: 'cur', title: a.title, start: a.start, count: results.count, averages: results.areas.map(function (x) { return x.average; }) });
-  const today = a.today || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+  let today = a.today || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+  // --final: 마감일 전에 조기 마감한 설문도 "최종 집계"로 표시
+  if ('final' in a && today <= a.end) { const x = new Date(a.end + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); today = x.toISOString().slice(0, 10); }
   const summary = JSON.parse(fs.readFileSync(a.summary, 'utf8'));
   const org = (fs.readFileSync(path.join(ROOT, 'config.js'), 'utf8').match(/ORG_NAME:\s*'([^']*)'/) || [])[1] || '';
 

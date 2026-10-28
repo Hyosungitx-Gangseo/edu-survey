@@ -28,6 +28,6 @@ node tools/report/make-report.js --csv 응답.csv --title "2026.10.27 저점톡 
   --start 2026-10-27 --end 2026-10-28 --summary summary.json --out out \
   --html2canvas /tmp/h2c/node_modules/html2canvas/dist/html2canvas.min.js
 ```
-지난 회차와 비교하려면 `--prev 지난회차.csv --prev-title "..." --prev-start YYYY-MM-DD`를 추가합니다.
+조기 마감한 설문을 최종본으로 만들려면 `--final 1`을 추가합니다("최종 집계"로 표시). 지난 회차와 비교하려면 `--prev 지난회차.csv --prev-title "..." --prev-start YYYY-MM-DD`를 추가합니다.
 
 > 설문 응답(CSV)과 요약 문구는 이 저장소(공개)에 올리지 마세요.
