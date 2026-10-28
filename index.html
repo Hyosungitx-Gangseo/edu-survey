@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>교육 만족도 설문</title>
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
 <div id="previewBar" class="preview-bar hidden">미리보기 모드 · 응답이 이 기기에만 저장됩니다</div>
@@ -24,6 +24,12 @@
 
   <div id="loading" class="loading">설문을 불러오는 중…</div>
   <div id="stateBox"></div>
+  <section id="chooser" class="card hidden" aria-labelledby="chooserTitle">
+    <h2 class="q-title" id="chooserTitle">참여할 설문을 선택해 주세요</h2>
+    <p class="q-help">지금 진행 중인 설문이 여러 개입니다. 설문마다 한 번씩 참여할 수 있습니다.</p>
+    <div class="pick-list" id="pickList"></div>
+  </section>
+  <div id="backBar" class="hidden"><button type="button" class="btn back-btn" id="toList">← 설문 목록</button></div>
 
   <form id="form" class="hidden" novalidate>
     <section class="card" id="q1">
@@ -85,15 +91,18 @@
   </div>
 </div>
 
-<script src="config.js?v=4"></script>
-<script src="questions.js?v=4"></script>
-<script src="api.js?v=4"></script>
+<script src="config.js?v=5"></script>
+<script src="questions.js?v=5"></script>
+<script src="api.js?v=5"></script>
 <script>
 (function () {
   const Q = window.SURVEY_QUESTIONS;
   const cfg = window.SURVEY_CONFIG || {};
   const $ = function (id) { return document.getElementById(id); };
   let survey = null;
+  let activeList = [];   // 지금 진행 중인 설문들
+  let built = false;
+  const DEFAULT_TITLE = $('title').textContent;
 
   $('orgName').textContent = cfg.ORG_NAME || '';
   if (SurveyApi.preview) $('previewBar').classList.remove('hidden');
@@ -119,14 +128,17 @@
     return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
 
-  function showState(kind, icon, title, lines, stamp) {
+  function showState(kind, icon, title, lines, stamp, extra) {
     $('form').classList.add('hidden');
+    $('chooser').classList.add('hidden');
+    $('backBar').classList.add('hidden');
     $('stateBox').innerHTML =
       '<section class="card state ' + kind + '" role="status">' +
       '<div class="big-ic" aria-hidden="true">' + icon + '</div>' +
       '<h2>' + title + '</h2>' +
       lines.map(function (l) { return '<p>' + l + '</p>'; }).join('') +
       (stamp ? '<div class="stamp">' + stamp + '</div>' : '') +
+      (extra || '') +
       '</section>';
   }
 
@@ -136,8 +148,66 @@
       justNow
         ? ['소중한 의견 감사합니다.', '이 설문은 한 번만 참여하실 수 있어 다시 제출하지 않으셔도 됩니다.']
         : ['한 사람당 한 번만 참여할 수 있어 다시 제출하지 않으셔도 됩니다.', '참여해 주셔서 감사합니다.'],
-      '✓ ' + fmt(date) + ' 제출 완료');
+      '✓ ' + fmt(date) + ' 제출 완료',
+      remaining().length ? '<div style="margin-top:18px"><button type="button" class="btn btn-primary" data-to-list>다른 설문 참여하기 (' + remaining().length + '개 남음)</button></div>' : '');
     window.scrollTo(0, 0);
+  }
+
+  // 아직 응답하지 않은, 진행 중인 다른 설문
+  function remaining() {
+    return activeList.filter(function (s) { return (!survey || s.id !== survey.id) && !getSubmitted(s.id); });
+  }
+
+  function setHeader(s) {
+    document.title = s ? s.title : DEFAULT_TITLE;
+    $('title').textContent = s ? s.title : DEFAULT_TITLE;
+    $('period').textContent = s ? '응답 기간 ' + fmt(s.start) + ' ~ ' + fmt(s.end) : '';
+  }
+
+  // ---------- 설문 선택 (진행 중인 설문이 여러 개일 때)
+  function showChooser() {
+    survey = null;
+    setHeader(null);
+    $('stateBox').innerHTML = '';
+    $('form').classList.add('hidden');
+    $('backBar').classList.add('hidden');
+    $('pickList').innerHTML = activeList.map(function (s) {
+      const done = getSubmitted(s.id);
+      return '<button type="button" class="pick' + (done ? ' done' : '') + '" data-id="' + esc(s.id) + '"' + (done ? ' disabled' : '') + '>' +
+        '<span class="pick-title">' + esc(s.title) + '</span>' +
+        '<span class="pick-meta">' + fmt(s.start) + ' ~ ' + fmt(s.end) + '</span>' +
+        '<span class="pick-cta">' + (done ? '✓ 응답 완료' : '참여하기 →') + '</span></button>';
+    }).join('');
+    $('chooser').classList.remove('hidden');
+    window.scrollTo(0, 0);
+  }
+  $('pickList').addEventListener('click', function (e) {
+    const b = e.target.closest('.pick');
+    if (!b || b.disabled) return;
+    openSurvey(activeList.filter(function (s) { return s.id === b.dataset.id; })[0]);
+  });
+  $('toList').addEventListener('click', showChooser);
+  $('stateBox').addEventListener('click', function (e) { if (e.target.closest('[data-to-list]')) showChooser(); });
+
+  function openSurvey(s) {
+    survey = s;
+    setHeader(s);
+    $('chooser').classList.add('hidden');
+    $('stateBox').innerHTML = '';
+    const done = getSubmitted(s.id);
+    if (done) { showSubmitted(done); return; }
+    if (!built) { buildForm(); built = true; }
+    else resetForm();
+    $('backBar').classList.toggle('hidden', activeList.length < 2);
+    $('form').classList.remove('hidden');
+    window.scrollTo(0, 0);
+  }
+
+  function resetForm() {
+    $('form').reset();
+    document.querySelectorAll('#form .missing').forEach(clearMissing);
+    document.querySelectorAll('#form textarea').forEach(function (t) { t.dispatchEvent(new Event('input')); });
+    updateProgress();
   }
 
   // ---------- 문항 렌더링
@@ -255,25 +325,38 @@
   });
 
   // ---------- 시작
+  // 설문별 전용 링크(?s=설문ID)로 들어오면 그 설문을 바로 연다.
+  const linkId = new URLSearchParams(location.search).get('s');
   (async function init() {
     try {
-      const res = await SurveyApi.call({ action: 'active' });
+      const res = await SurveyApi.call({ action: 'active', id: linkId || undefined });
       $('loading').classList.add('hidden');
       if (!res.ok) throw new Error(res.error);
-      survey = res.survey;
-      if (!survey) {
+      activeList = res.surveys || (res.survey ? [res.survey] : []);
+      if (linkId) {
+        const t = res.target !== undefined ? res.target
+          : activeList.filter(function (s) { return s.id === linkId; }).map(function (s) { s.state = 'active'; return s; })[0] || null;
+        if (t && t.state === 'active') { openSurvey(t); return; }
+        if (t && t.state === 'upcoming') {
+          setHeader(t);
+          showState('idle', '🗓️', '아직 시작하지 않은 설문입니다', ['<b>' + fmt(t.start) + ' ~ ' + fmt(t.end) + '</b>에 참여하실 수 있습니다.']);
+          return;
+        }
+        if (t && t.state === 'closed') {
+          setHeader(t);
+          showState('idle', '🔒', '마감된 설문입니다', ['응답 기간(' + fmt(t.start) + ' ~ ' + fmt(t.end) + ')이 지났습니다.'],
+            null, activeList.length ? '<div style="margin-top:18px"><button type="button" class="btn btn-primary" data-to-list>진행 중인 설문 보기</button></div>' : '');
+          return;
+        }
+      }
+      if (!activeList.length) {
         const up = res.upcoming;
         showState('idle', '🗓️', '지금은 진행 중인 설문이 없습니다',
           up ? ['다음 설문은 <b>' + fmt(up.start) + ' ~ ' + fmt(up.end) + '</b>에 진행됩니다.'] : ['설문 기간에 다시 접속해 주세요.']);
         return;
       }
-      document.title = survey.title;
-      $('title').textContent = survey.title;
-      $('period').textContent = '응답 기간 ' + fmt(survey.start) + ' ~ ' + fmt(survey.end);
-      const done = getSubmitted(survey.id);
-      if (done) { showSubmitted(done); return; }
-      buildForm();
-      $('form').classList.remove('hidden');
+      if (activeList.length === 1) openSurvey(activeList[0]);
+      else showChooser();
     } catch (err) {
       $('loading').classList.add('hidden');
       showState('idle', '⚠️', '설문을 불러오지 못했습니다', ['잠시 후 다시 접속해 주세요.']);

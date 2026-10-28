@@ -60,7 +60,7 @@ function doPost(e) {
 
 function handle_(req) {
   switch (req.action) {
-    case 'active': return getActive_();
+    case 'active': return getActive_(req);
     case 'submit': return submit_(req);
     case 'login': return login_(req);
   }
@@ -76,15 +76,24 @@ function handle_(req) {
 
 // ---------------------------------------------------------------- 공개: 설문 응답
 
-function getActive_() {
+// 진행 중인 설문 목록. req.id 가 있으면(설문별 전용 링크) 그 설문의 상태도 함께 돌려준다.
+function getActive_(req) {
   const today = today_();
   const surveys = readSurveys_().sort(function (a, b) { return a.start < b.start ? -1 : 1; });
-  let active = null, upcoming = null;
-  surveys.forEach(function (s) {
-    if (!active && s.start <= today && today <= s.end) active = s;
-    if (!upcoming && s.start > today) upcoming = s;
-  });
-  return { ok: true, today: today, survey: active && publicSurvey_(active), upcoming: upcoming && publicSurvey_(upcoming) };
+  const active = surveys.filter(function (s) { return s.start <= today && today <= s.end; });
+  const upcoming = surveys.filter(function (s) { return s.start > today; })[0] || null;
+  const out = {
+    ok: true,
+    today: today,
+    surveys: active.map(publicSurvey_),
+    survey: active.length ? publicSurvey_(active[0]) : null,   // 예전 화면 호환용
+    upcoming: upcoming && publicSurvey_(upcoming)
+  };
+  if (req && req.id) {
+    const t = surveys.filter(function (s) { return s.id === String(req.id); })[0];
+    out.target = t ? Object.assign(publicSurvey_(t), { state: today < t.start ? 'upcoming' : today > t.end ? 'closed' : 'active' }) : null;
+  }
+  return out;
 }
 
 function submit_(req) {
@@ -200,11 +209,6 @@ function saveSurvey_(req) {
   try {
     const sh = sheet_('Surveys', SURVEY_HEADERS);
     const surveys = readSurveys_();
-    surveys.forEach(function (s) {
-      if (s.id !== req.id && start <= s.end && s.start <= end) {
-        throw userError_('"' + s.title + '"(' + s.start + ' ~ ' + s.end + ')과 기간이 겹칩니다.');
-      }
-    });
     if (req.id) {
       const target = surveys.filter(function (s) { return s.id === req.id; })[0];
       if (!target) throw userError_('설문을 찾을 수 없습니다.');

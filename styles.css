@@ -179,6 +179,20 @@ textarea:focus, input:focus, select:focus { outline: none; border-color: var(--a
 }
 .state.idle .big-ic { background: var(--surface-2); }
 
+.pick-list { display: grid; gap: 10px; }
+.pick {
+  display: grid; gap: 4px; text-align: left; width: 100%;
+  padding: 16px; border: 1.5px solid var(--border); border-radius: 12px;
+  background: var(--surface); cursor: pointer;
+}
+.pick:hover { border-color: var(--accent); }
+.pick-title { font-size: 16px; font-weight: 700; line-height: 1.4; }
+.pick-meta { font-size: 13px; color: var(--text-2); }
+.pick-cta { font-size: 14px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+.pick.done { cursor: default; background: var(--surface-2); }
+.pick.done .pick-cta { color: var(--good); }
+.back-btn { min-height: 40px; font-size: 14px; margin-top: 4px; }
+
 .modal-bg {
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: flex; align-items: flex-end; justify-content: center; z-index: 50;

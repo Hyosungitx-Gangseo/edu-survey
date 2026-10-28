@@ -16,7 +16,15 @@ const old = call({ action: 'saveSurvey', token, title: '지난 회차', start: a
 assert.ok(old.ok);
 const cur = call({ action: 'saveSurvey', token, title: '이번 회차', start: today, end: add(today, 1) });
 assert.ok(cur.ok, JSON.stringify(cur));
-assert.ok(!call({ action: 'saveSurvey', token, title: '겹침', start: add(today, 1), end: add(today, 2) }).ok);
+// 기간이 겹치는 설문도 등록 가능, 진행 중인 설문은 목록으로
+const second = call({ action: 'saveSurvey', token, title: '겹침', start: today, end: add(today, 2) });
+assert.ok(second.ok, JSON.stringify(second));
+const act = call({ action: 'active' });
+assert.deepStrictEqual(act.surveys.map(s => s.id).sort(), [cur.id, second.id].sort());
+assert.strictEqual(call({ action: 'active', id: old.id }).target.state, 'closed');
+assert.strictEqual(call({ action: 'active', id: second.id }).target.state, 'active');
+assert.strictEqual(call({ action: 'active', id: 'nope' }).target, null);
+assert.ok(call({ action: 'deleteSurvey', token, id: second.id }).ok);
 assert.strictEqual(call({ action: 'active' }).survey.id, cur.id);
 assert.ok(!call({ action: 'submit', surveyId: old.id, answers: { ratings: [1,2,3,4,5], issues: ['기타'] } }).ok, 'closed');
 assert.ok(!call({ action: 'submit', surveyId: cur.id, answers: { ratings: [1,2,3,4], issues: ['기타'] } }).ok);
