@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>설문 관리자</title>
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 <style>
   .wrap { max-width: 880px; padding-bottom: 60px; }
   .login { max-width: 380px; margin: 8vh auto 0; }
@@ -193,9 +193,9 @@
 </div>
 <div id="tip" class="hidden" role="tooltip"></div>
 
-<script src="config.js?v=6"></script>
-<script src="questions.js?v=6"></script>
-<script src="api.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="questions.js?v=7"></script>
+<script src="api.js?v=7"></script>
 <script>
 (function () {
   const Q = window.SURVEY_QUESTIONS;
@@ -215,7 +215,9 @@
   function short(d) { const p = d.split('-'); return +p[1] + '/' + +p[2]; }
   function num(v) { return v == null ? '–' : v.toFixed(2); }
   function addDays(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
+  function isOpen(s) { return !s.closedAt && s.start <= today && today <= s.end; }
   function status(s) {
+    if (s.closedAt) return '<span class="chip off">조기 마감</span>';
     if (today < s.start) return '<span class="chip wait">예정</span>';
     if (today > s.end) return '<span class="chip off">마감</span>';
     return '<span class="chip on">진행 중</span>';
@@ -313,10 +315,12 @@
     $('surveyList').innerHTML = surveys.slice().reverse().map(function (s) {
       return '<div class="survey-item">' +
         '<div><span class="t">' + esc(s.title) + '</span>' + status(s) + '</div>' +
-        '<div class="m">' + fmt(s.start) + ' ~ ' + fmt(s.end) + ' · 응답 ' + s.count + '명</div>' +
+        '<div class="m">' + fmt(s.start) + ' ~ ' + fmt(s.end) + (s.closedAt ? ' · ' + fmt(s.closedAt) + ' 마감' : '') + ' · 응답 ' + s.count + '명</div>' +
         '<div class="acts">' +
           '<button class="btn" data-act="view" data-id="' + s.id + '">결과 보기</button>' +
           '<button class="btn" data-act="link" data-id="' + s.id + '">전용 링크 복사</button>' +
+          (isOpen(s) ? '<button class="btn btn-danger" data-act="close" data-id="' + s.id + '">지금 마감</button>' : '') +
+          (s.closedAt && today <= s.end ? '<button class="btn" data-act="reopen" data-id="' + s.id + '">마감 취소</button>' : '') +
           '<button class="btn" data-act="edit" data-id="' + s.id + '">수정</button>' +
           '<button class="btn btn-danger" data-act="del" data-id="' + s.id + '">삭제</button>' +
         '</div></div>';
@@ -341,6 +345,16 @@
       $('cancelEdit').classList.remove('hidden');
       $('formMsg').innerHTML = '';
       $('surveyForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (b.dataset.act === 'close' || b.dataset.act === 'reopen') {
+      const reopen = b.dataset.act === 'reopen';
+      const msg = reopen
+        ? '"' + s.title + '" 설문을 다시 엽니다.\n마감일(' + fmt(s.end) + ')까지 다시 응답을 받습니다. 계속할까요?'
+        : '"' + s.title + '" 설문을 지금 마감합니다.\n마감하면 상담사들이 더 이상 응답할 수 없습니다. (마감일 전이면 "마감 취소"로 다시 열 수 있습니다)\n계속할까요?';
+      if (!confirm(msg)) return;
+      b.disabled = true;
+      try { await api({ action: 'closeSurvey', id: s.id, reopen: reopen }); await refreshSurveys(false); }
+      catch (err) { showError(err.message); b.disabled = false; }
     }
     if (b.dataset.act === 'del') {
       if (!confirm('"' + s.title + '" 설문과 응답 ' + s.count + '건을 모두 삭제합니다.\n삭제하면 되돌릴 수 없습니다. 계속할까요?')) return;

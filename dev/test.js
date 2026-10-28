@@ -24,6 +24,17 @@ assert.deepStrictEqual(act.surveys.map(s => s.id).sort(), [cur.id, second.id].so
 assert.strictEqual(call({ action: 'active', id: old.id }).target.state, 'closed');
 assert.strictEqual(call({ action: 'active', id: second.id }).target.state, 'active');
 assert.strictEqual(call({ action: 'active', id: 'nope' }).target, null);
+// 조기 마감 / 마감 취소
+assert.ok(call({ action: 'closeSurvey', token, id: second.id }).ok);
+assert.deepStrictEqual(call({ action: 'active' }).surveys.map(s => s.id), [cur.id]);
+assert.strictEqual(call({ action: 'active', id: second.id }).target.state, 'closed');
+assert.strictEqual(call({ action: 'active', id: second.id }).target.closedEarly, true);
+assert.ok(/마감/.test(call({ action: 'submit', surveyId: second.id, answers: { ratings: [3,3,3,3,3], issues: ['기타'] } }).error));
+assert.strictEqual(call({ action: 'listSurveys', token }).surveys.find(s => s.id === second.id).closedAt, today);
+assert.ok(call({ action: 'closeSurvey', token, id: second.id, reopen: true }).ok);
+assert.strictEqual(call({ action: 'active', id: second.id }).target.state, 'active');
+assert.ok(!call({ action: 'closeSurvey', token, id: old.id, reopen: true }).ok, 'cannot reopen past end');
+assert.ok(!call({ action: 'closeSurvey', token: 'bad', id: second.id }).ok);
 assert.ok(call({ action: 'deleteSurvey', token, id: second.id }).ok);
 assert.strictEqual(call({ action: 'active' }).survey.id, cur.id);
 assert.ok(!call({ action: 'submit', surveyId: old.id, answers: { ratings: [1,2,3,4,5], issues: ['기타'] } }).ok, 'closed');

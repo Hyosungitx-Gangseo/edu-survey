@@ -33,7 +33,7 @@ const ISSUES = [
 ];
 const ISSUE_NONE = '특별히 없음';
 
-const SURVEY_HEADERS = ['id', 'title', 'start', 'end', 'createdAt'];
+const SURVEY_HEADERS = ['id', 'title', 'start', 'end', 'createdAt', 'closedAt'];   // closedAt: 조기 마감한 날짜
 const RESPONSE_HEADERS = ['surveyId', 'date']
   .concat(AREAS.map(function (a, i) { return 'r' + (i + 1); }))
   .concat(['issues', 'issueDetail', 'improve', 'wish', 'useful']);
@@ -69,6 +69,7 @@ function handle_(req) {
     case 'listSurveys': return listSurveys_();
     case 'saveSurvey': return saveSurvey_(req);
     case 'deleteSurvey': return deleteSurvey_(req);
+    case 'closeSurvey': return closeSurvey_(req);
     case 'results': return results_(req);
   }
   throw userError_('알 수 없는 요청입니다.');
@@ -80,8 +81,8 @@ function handle_(req) {
 function getActive_(req) {
   const today = today_();
   const surveys = readSurveys_().sort(function (a, b) { return a.start < b.start ? -1 : 1; });
-  const active = surveys.filter(function (s) { return s.start <= today && today <= s.end; });
-  const upcoming = surveys.filter(function (s) { return s.start > today; })[0] || null;
+  const active = surveys.filter(function (s) { return stateOf_(s, today) === 'active'; });
+  const upcoming = surveys.filter(function (s) { return stateOf_(s, today) === 'upcoming'; })[0] || null;
   const out = {
     ok: true,
     today: today,
@@ -91,7 +92,7 @@ function getActive_(req) {
   };
   if (req && req.id) {
     const t = surveys.filter(function (s) { return s.id === String(req.id); })[0];
-    out.target = t ? Object.assign(publicSurvey_(t), { state: today < t.start ? 'upcoming' : today > t.end ? 'closed' : 'active' }) : null;
+    out.target = t ? Object.assign(publicSurvey_(t), { state: stateOf_(t, today), closedEarly: !!t.closedAt }) : null;
   }
   return out;
 }
@@ -117,7 +118,7 @@ function submit_(req) {
     const survey = readSurveys_().filter(function (s) { return s.id === req.surveyId; })[0];
     if (!survey) throw userError_('설문을 찾을 수 없습니다.');
     if (today < survey.start) throw userError_('아직 시작되지 않은 설문입니다.');
-    if (today > survey.end) throw userError_('마감된 설문입니다.');
+    if (today > survey.end || survey.closedAt) throw userError_('마감된 설문입니다.');
 
     const row = [survey.id, today]
       .concat(ratings)
@@ -189,7 +190,7 @@ function listSurveys_() {
     surveys: surveys.map(function (s) {
       const rows = responses.filter(function (r) { return r.surveyId === s.id; });
       return {
-        id: s.id, title: s.title, start: s.start, end: s.end,
+        id: s.id, title: s.title, start: s.start, end: s.end, closedAt: s.closedAt,
         count: rows.length,
         averages: AREAS.map(function (_, i) { return average_(rows.map(function (r) { return r.ratings[i]; })); })
       };
@@ -216,8 +217,27 @@ function saveSurvey_(req) {
       return { ok: true, id: req.id };
     }
     const id = Utilities.getUuid().replace(/-/g, '').slice(0, 10);
-    appendRow_(sh, [id, title, start, end, today_()]);
+    appendRow_(sh, [id, title, start, end, today_(), '']);
     return { ok: true, id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// 마감일 전에 설문을 닫거나(reopen 없음) 다시 연다(reopen: true).
+function closeSurvey_(req) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const target = readSurveys_().filter(function (s) { return s.id === req.id; })[0];
+    if (!target) throw userError_('설문을 찾을 수 없습니다.');
+    if (req.reopen && today_() > target.end) throw userError_('마감일이 지난 설문은 다시 열 수 없습니다. 마감일을 수정해 주세요.');
+    const sh = sheet_('Surveys', SURVEY_HEADERS);
+    sh.getRange(1, 6, 1, 1).setValues([['closedAt']]);   // 예전에 만든 시트에는 이 열 제목이 없음
+    const cell = sh.getRange(target.row, 6, 1, 1);
+    cell.setNumberFormat('@');
+    cell.setValues([[req.reopen ? '' : today_()]]);
+    return { ok: true };
   } finally {
     lock.releaseLock();
   }
@@ -316,7 +336,7 @@ function readSurveys_() {
   return readRows_('Surveys', SURVEY_HEADERS)
     .filter(function (v) { return v[0]; })
     .map(function (v) {
-      return { row: v.row, id: String(v[0]), title: String(v[1]), start: dateStr_(v[2]), end: dateStr_(v[3]) };
+      return { row: v.row, id: String(v[0]), title: String(v[1]), start: dateStr_(v[2]), end: dateStr_(v[3]), closedAt: v[5] ? dateStr_(v[5]) : '' };
     });
 }
 
@@ -339,6 +359,11 @@ function readResponses_() {
 }
 
 // ---------------------------------------------------------------- 유틸
+
+function stateOf_(s, today) {
+  if (s.closedAt || today > s.end) return 'closed';
+  return today < s.start ? 'upcoming' : 'active';
+}
 
 function publicSurvey_(s) {
   return { id: s.id, title: s.title, start: s.start, end: s.end };
